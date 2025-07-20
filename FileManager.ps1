@@ -249,7 +249,7 @@ function Apply-Search {
     } else {
         try {
             $regex = New-Object System.Text.RegularExpressions.Regex($pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-            $global:filteredTable = $global:fileTable | Where-Object { $regex.IsMatch($_.Name) }
+            $global:filteredTable = $global:fileTable | Where-Object { $regex.IsMatch([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) }
         } catch {
             $p = $pattern.ToLower()
             $global:filteredTable = $global:fileTable | Where-Object { $_.Name.ToLower() -like "*$p*" }
