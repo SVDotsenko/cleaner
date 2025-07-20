@@ -76,19 +76,19 @@ $searchBtn.Top = 37
 # Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($searchBtn)
 
-$increaseFontBtn = New-Object Windows.Forms.Button
-$increaseFontBtn.Text = "A+"
-$increaseFontBtn.Left = 410
-$increaseFontBtn.Top = 37
-# Ширина будет установлена в Set-AllFonts
-$form.Controls.Add($increaseFontBtn)
-
 $decreaseFontBtn = New-Object Windows.Forms.Button
 $decreaseFontBtn.Text = "A-"
-$decreaseFontBtn.Left = 455
+$decreaseFontBtn.Left = 410
 $decreaseFontBtn.Top = 37
 # Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($decreaseFontBtn)
+
+$increaseFontBtn = New-Object Windows.Forms.Button
+$increaseFontBtn.Text = "A+"
+$increaseFontBtn.Left = 455
+$increaseFontBtn.Top = 37
+# Ширина будет установлена в Set-AllFonts
+$form.Controls.Add($increaseFontBtn)
 
 # --- Таблица файлов ---
 $listView = New-Object Windows.Forms.ListView
@@ -143,8 +143,8 @@ function Adjust-SecondRowLayout() {
     $searchBtn.Left = $searchBox.Left + $searchBox.Width + 10
 
     # Кнопки изменения шрифта
-    $increaseFontBtn.Left = $searchBtn.Left + $searchBtn.Width + 10
-    $decreaseFontBtn.Left = $increaseFontBtn.Left + $increaseFontBtn.Width + 5
+    $decreaseFontBtn.Left = $searchBtn.Left + $searchBtn.Width + 10
+    $increaseFontBtn.Left = $decreaseFontBtn.Left + $decreaseFontBtn.Width + 5
 }
 
 # --- Функция установки шрифта ко всем элементам ---
