@@ -2,7 +2,7 @@ Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName Microsoft.VisualBasic
 
 # --- Глобальные параметры шрифта ---
-$global:fontSize = 9
+$global:fontSize = 12
 $global:fontFamily = "Segoe UI"
 
 $form = New-Object Windows.Forms.Form
@@ -285,6 +285,6 @@ $form.Add_Resize({
     $listView.Columns[0].Width = $listView.ClientSize.Width - $listView.Columns[1].Width - 20
 })
 
-$form.Topmost = $true
+$form.Topmost = $false
 $form.Add_Shown({ $form.Activate() })
 [void]$form.ShowDialog()
