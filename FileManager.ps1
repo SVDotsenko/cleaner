@@ -1,13 +1,17 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName Microsoft.VisualBasic
 
+# --- Глобальные параметры шрифта ---
+$global:fontSize = 9
+$global:fontFamily = "Segoe UI"
+
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
-$form.Width = 770
-$form.Height = 580
+$form.Width = 900
+$form.Height = 610
 $form.MinimumSize = New-Object Drawing.Size(500,370)
 
-# ---- Кнопки в первой строке ----
+# --- Первая строка кнопок ---
 $selectFolderBtn = New-Object Windows.Forms.Button
 $selectFolderBtn.Text = "Select Folder"
 $selectFolderBtn.Left = 10
@@ -51,7 +55,7 @@ $totalSizeLabel.Top = 15
 $form.Controls.Add($totalSizeLabel)
 $totalSizeLabel.AutoSize = $true
 
-# ---- Вторая строка: поиск ----
+# --- Вторая строка: поиск и кнопки шрифта ---
 $searchLabel = New-Object Windows.Forms.Label
 $searchLabel.Text = "Filter:"
 $searchLabel.Left = 10
@@ -72,16 +76,30 @@ $searchBtn.Top = 37
 $searchBtn.Width = 80
 $form.Controls.Add($searchBtn)
 
-# ---- Таблица ----
+$increaseFontBtn = New-Object Windows.Forms.Button
+$increaseFontBtn.Text = "A+"
+$increaseFontBtn.Left = 410
+$increaseFontBtn.Top = 37
+$increaseFontBtn.Width = 40
+$form.Controls.Add($increaseFontBtn)
+
+$decreaseFontBtn = New-Object Windows.Forms.Button
+$decreaseFontBtn.Text = "A-"
+$decreaseFontBtn.Left = 455
+$decreaseFontBtn.Top = 37
+$decreaseFontBtn.Width = 40
+$form.Controls.Add($decreaseFontBtn)
+
+# --- Таблица файлов ---
 $listView = New-Object Windows.Forms.ListView
 $listView.View = 'Details'
 $listView.FullRowSelect = $true
 $listView.MultiSelect = $true
 $listView.Left = 10
 $listView.Top = 70
-$listView.Width = 720
-$listView.Height = 440
-$listView.Columns.Add("File Name", 420) | Out-Null
+$listView.Width = 860
+$listView.Height = 470
+$listView.Columns.Add("File Name", 470) | Out-Null
 $listView.Columns.Add("Size (MB)", 100) | Out-Null
 $listView.Scrollable = $true
 $listView.GridLines = $true
@@ -89,9 +107,28 @@ $listView.Sorting = 'None'
 $listView.Anchor = "Top,Bottom,Left,Right"
 $form.Controls.Add($listView)
 
+# --- Глобальные переменные для файлов ---
 $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
+
+# --- Функция установки шрифта ко всем элементам ---
+function Set-AllFonts($fontSize) {
+    $font = New-Object System.Drawing.Font($global:fontFamily, $fontSize)
+    $form.Font = $font
+    $selectFolderBtn.Font = $font
+    $deleteBtn.Font = $font
+    $sortNameBtn.Font = $font
+    $sortSizeBtn.Font = $font
+    $increaseFontBtn.Font = $font
+    $decreaseFontBtn.Font = $font
+    $totalFilesLabel.Font = $font
+    $totalSizeLabel.Font = $font
+    $searchLabel.Font = $font
+    $searchBox.Font = $font
+    $searchBtn.Font = $font
+    $listView.Font = $font
+}
 
 function Refresh-InfoLabels {
     $count = $global:filteredTable.Count
@@ -153,7 +190,26 @@ function Apply-Search {
     Refresh-ListView
 }
 
-$form.Add_Shown({ Load-FilesFromFolder })
+$form.Add_Shown({
+    Set-AllFonts $global:fontSize
+    Load-FilesFromFolder
+})
+
+$increaseFontBtn.Add_Click({
+    if ($global:fontSize -lt 32) {
+        $global:fontSize += 1
+        Set-AllFonts $global:fontSize
+        $listView.Columns[0].Width = $listView.ClientSize.Width - $listView.Columns[1].Width - 20
+    }
+})
+
+$decreaseFontBtn.Add_Click({
+    if ($global:fontSize -gt 5) {
+        $global:fontSize -= 1
+        Set-AllFonts $global:fontSize
+        $listView.Columns[0].Width = $listView.ClientSize.Width - $listView.Columns[1].Width - 20
+    }
+})
 
 $searchBtn.Add_Click({
     Apply-Search
