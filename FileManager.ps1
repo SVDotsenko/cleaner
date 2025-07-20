@@ -301,11 +301,8 @@ function BindHandlers {
         foreach ($i in $toDeleteIndexes) {
             $file = $global:filteredTable[$i]
             try {
-                [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile(
-                        $file.Path,
-                        'OnlyErrorDialogs',
-                        'SendToRecycleBin'
-                ) | Out-Null
+                # Use Remove-Item for permanent deletion
+                Remove-Item -Path $file.Path -Force
                 $deleted++
                 $global:fileTable = $global:fileTable | Where-Object { $_.Path -ne $file.Path }
                 $global:filteredTable = $global:filteredTable | Where-Object { $_.Path -ne $file.Path }
@@ -314,7 +311,7 @@ function BindHandlers {
             }
         }
         Refresh-ListView
-        [Windows.Forms.MessageBox]::Show("$deleted file(s) sent to Recycle Bin.", "Done", 'OK', 'Information') | Out-Null
+        [Windows.Forms.MessageBox]::Show("$deleted file(s) permanently deleted.", "Done", 'OK', 'Information') | Out-Null
     })
 
     $controls.ListView.Add_DoubleClick({
