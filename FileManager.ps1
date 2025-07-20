@@ -16,14 +16,14 @@ $selectFolderBtn = New-Object Windows.Forms.Button
 $selectFolderBtn.Text = "Select Folder"
 $selectFolderBtn.Left = 10
 $selectFolderBtn.Top = 10
-$selectFolderBtn.Width = 100
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($selectFolderBtn)
 
 $deleteBtn = New-Object Windows.Forms.Button
 $deleteBtn.Text = "Delete Selected"
 $deleteBtn.Left = 120
 $deleteBtn.Top = 10
-$deleteBtn.Width = 120
+# Ширина будет установлена в Set-AllFonts
 $deleteBtn.Enabled = $false
 $form.Controls.Add($deleteBtn)
 
@@ -31,14 +31,14 @@ $sortNameBtn = New-Object Windows.Forms.Button
 $sortNameBtn.Text = "Sort by Name"
 $sortNameBtn.Left = 250
 $sortNameBtn.Top = 10
-$sortNameBtn.Width = 110
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($sortNameBtn)
 
 $sortSizeBtn = New-Object Windows.Forms.Button
 $sortSizeBtn.Text = "Sort by Size"
 $sortSizeBtn.Left = 370
 $sortSizeBtn.Top = 10
-$sortSizeBtn.Width = 110
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($sortSizeBtn)
 
 $totalFilesLabel = New-Object Windows.Forms.Label
@@ -73,21 +73,21 @@ $searchBtn = New-Object Windows.Forms.Button
 $searchBtn.Text = "Search"
 $searchBtn.Left = 320
 $searchBtn.Top = 37
-$searchBtn.Width = 80
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($searchBtn)
 
 $increaseFontBtn = New-Object Windows.Forms.Button
 $increaseFontBtn.Text = "A+"
 $increaseFontBtn.Left = 410
 $increaseFontBtn.Top = 37
-$increaseFontBtn.Width = 40
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($increaseFontBtn)
 
 $decreaseFontBtn = New-Object Windows.Forms.Button
 $decreaseFontBtn.Text = "A-"
 $decreaseFontBtn.Left = 455
 $decreaseFontBtn.Top = 37
-$decreaseFontBtn.Width = 40
+# Ширина будет установлена в Set-AllFonts
 $form.Controls.Add($decreaseFontBtn)
 
 # --- Таблица файлов ---
@@ -112,6 +112,41 @@ $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
 
+# --- Функция для изменения размера кнопок в соответствии с текстом ---
+function Resize-ButtonToFitText($button, $font) {
+    # Создать объект Graphics для измерения текста
+    $g = [System.Drawing.Graphics]::FromHwnd($button.Handle)
+    $size = $g.MeasureString($button.Text, $font)
+    $g.Dispose()
+    # Задать ширину кнопки с запасом (например, +20 пикселей)
+    $button.Width = [Math]::Ceiling($size.Width) + 20
+    # Опционально изменить высоту, если шрифт большой
+    $button.Height = [Math]::Ceiling($size.Height) + 8
+}
+
+# --- Функция для корректировки позиций элементов первой строки ---
+function Adjust-FirstRowLayout() {
+    # Установка позиций для кнопок в первой строке
+    $deleteBtn.Left = $selectFolderBtn.Left + $selectFolderBtn.Width + 10
+    $sortNameBtn.Left = $deleteBtn.Left + $deleteBtn.Width + 10
+    $sortSizeBtn.Left = $sortNameBtn.Left + $sortNameBtn.Width + 10
+
+    # Статистика начинается после кнопок
+    $totalFilesLabel.Left = $sortSizeBtn.Left + $sortSizeBtn.Width + 20
+    $totalSizeLabel.Left = $totalFilesLabel.Left + $totalFilesLabel.Width + 15
+}
+
+# --- Функция для корректировки позиций элементов второй строки ---
+function Adjust-SecondRowLayout() {
+    # Поле поиска и кнопка
+    $searchBox.Left = $searchLabel.Left + $searchLabel.Width + 5
+    $searchBtn.Left = $searchBox.Left + $searchBox.Width + 10
+
+    # Кнопки изменения шрифта
+    $increaseFontBtn.Left = $searchBtn.Left + $searchBtn.Width + 10
+    $decreaseFontBtn.Left = $increaseFontBtn.Left + $increaseFontBtn.Width + 5
+}
+
 # --- Функция установки шрифта ко всем элементам ---
 function Set-AllFonts($fontSize) {
     $font = New-Object System.Drawing.Font($global:fontFamily, $fontSize)
@@ -128,6 +163,19 @@ function Set-AllFonts($fontSize) {
     $searchBox.Font = $font
     $searchBtn.Font = $font
     $listView.Font = $font
+
+    # Автоматически подгонять размер кнопок под текст
+    Resize-ButtonToFitText $selectFolderBtn $font
+    Resize-ButtonToFitText $deleteBtn $font
+    Resize-ButtonToFitText $sortNameBtn $font
+    Resize-ButtonToFitText $sortSizeBtn $font
+    Resize-ButtonToFitText $searchBtn $font
+    Resize-ButtonToFitText $increaseFontBtn $font
+    Resize-ButtonToFitText $decreaseFontBtn $font
+
+    # Изменение положения кнопок и надписей
+    Adjust-FirstRowLayout
+    Adjust-SecondRowLayout
 }
 
 function Refresh-InfoLabels {
@@ -193,6 +241,9 @@ function Apply-Search {
 $form.Add_Shown({
     Set-AllFonts $global:fontSize
     Load-FilesFromFolder
+    # Гарантируем, что элементы UI расположены правильно
+    Adjust-FirstRowLayout
+    Adjust-SecondRowLayout
 })
 
 $increaseFontBtn.Add_Click({
@@ -283,6 +334,9 @@ $listView.Add_DoubleClick({
 
 $form.Add_Resize({
     $listView.Columns[0].Width = $listView.ClientSize.Width - $listView.Columns[1].Width - 20
+    # При изменении размера окна, также пересчитываем позиции элементов
+    Adjust-FirstRowLayout
+    Adjust-SecondRowLayout
 })
 
 $form.Topmost = $false
