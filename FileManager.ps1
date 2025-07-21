@@ -64,27 +64,13 @@ function CreateControls {
     $y2 = $y + $btnH + $gap
     $x2 = $gap
 
-    $controls.SearchLabel = New-Object Windows.Forms.Label
-    $controls.SearchLabel.Text = "Filter:"
-    $controls.SearchLabel.AutoSize = $true
-    $form.Controls.Add($controls.SearchLabel)
-    # Сразу ставим шрифт, чтобы .Width был верным
-    $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
-    $controls.SearchLabel.Font = $font
-    $form.PerformLayout()
-    # Центрируем по вертикали относительно кнопок
-    $controls.SearchLabel.Top = $y2 + ($btnH - $controls.SearchLabel.Height) / 2
-    $controls.SearchLabel.Left = $x2
-    $form.PerformLayout()
-    $x2 += $controls.SearchLabel.Width + $gap
-
     $controls.SearchBox = New-Object Windows.Forms.TextBox
     $form.Controls.Add($controls.SearchBox)
     $controls.SearchBox.SetBounds($x2, $y2, 250 + $global:fontSize*5, $btnH)
     $x2 += $controls.SearchBox.Width + $gap
 
     $controls.SearchBtn = New-Object Windows.Forms.Button
-    $controls.SearchBtn.Text = "Search"
+    $controls.SearchBtn.Text = "Filter"
     $form.Controls.Add($controls.SearchBtn)
     $controls.SearchBtn.SetBounds($x2, $y2, 80 + $global:fontSize*2, $btnH)
     $x2 += $controls.SearchBtn.Width + $gap
@@ -205,15 +191,6 @@ function LayoutOnlyFonts {
 
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-
-    $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
-    $controls.SearchLabel.Font = $font
-    $form.PerformLayout()
-    $controls.SearchLabel.Left = $x2
-    # Центрируем по вертикали относительно кнопок
-    $controls.SearchLabel.Top = $y2 + ($btnH - $controls.SearchLabel.Height) / 2
-    $form.PerformLayout()
-    $x2 += $controls.SearchLabel.Width + $gap
 
     $controls.SearchBox.SetBounds($x2, $y2, 250 + $global:fontSize*5, $btnH)
     $x2 += $controls.SearchBox.Width + $gap
