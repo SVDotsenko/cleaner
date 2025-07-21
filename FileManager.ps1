@@ -13,6 +13,12 @@ $form.MinimumSize = New-Object Drawing.Size(600,400)
 # Контейнер для элементов
 $controls = @{}
 
+# Создаем ToolTip для подсказок
+$toolTip = New-Object System.Windows.Forms.ToolTip
+$toolTip.AutoPopDelay = 5000
+$toolTip.InitialDelay = 1000
+$toolTip.ReshowDelay = 500
+
 # ====== Функция для создания и размещения элементов ======
 function CreateControls {
     $gap = [int]($global:fontSize * 0.8)
@@ -136,6 +142,29 @@ function CreateControls {
     $controls.ListView.Columns.Add("File Name", -1) | Out-Null  # -1 для автоматического размера
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
+
+    # Устанавливаем подсказки для элементов
+    $selectFolderTooltip = @"
+Позволяет выбрать другую папку для отображения и работы с её файлами.
+"@
+    $deleteTooltip = @"
+Удаляет выбранные в таблице файлы.
+"@
+    $sortNameTooltip = @"
+Сортирует список файлов по имени (в алфавитном порядке, от А до Я).
+"@
+    $sortSizeTooltip = @"
+Сортирует список файлов по размеру (от большего к меньшему).
+"@
+    $searchBoxTooltip = @"
+Позволяет ввести шаблон поиска или регулярное выражение для фильтрации файлов по имени (поиск нечувствителен к регистру).
+"@
+    
+    $toolTip.SetToolTip($controls.SelectFolder, $selectFolderTooltip.Trim())
+    $toolTip.SetToolTip($controls.DeleteBtn, $deleteTooltip.Trim())
+    $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
+    $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
+    $toolTip.SetToolTip($controls.SearchBox, $searchBoxTooltip.Trim())
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
