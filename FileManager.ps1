@@ -297,6 +297,7 @@ function Refresh-ListView {
 $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
+$global:activeSortButton = $null  # Отслеживает текущую активную кнопку сортировки
 
 function Load-FilesFromFolder {
     $global:fileTable = @()
@@ -311,9 +312,15 @@ function Load-FilesFromFolder {
             }
         }
         $global:fileTable = $global:fileTable | Sort-Object SizeMB -Descending
+        # Устанавливаем кнопку Size как активную по умолчанию, так как сортировка по умолчанию по размеру
+        $global:activeSortButton = $controls.SortSizeBtn
+        Update-SortButtonStates
         Apply-Search
     } else {
         $global:fileTable = @()
+        # Устанавливаем кнопку Size как активную по умолчанию
+        $global:activeSortButton = $controls.SortSizeBtn
+        Update-SortButtonStates
         Apply-Search
     }
 }
@@ -332,6 +339,25 @@ function Apply-Search {
         }
     }
     Refresh-ListView
+}
+
+function Update-SortButtonStates {
+    # Сбрасываем все кнопки сортировки в обычное состояние
+    $controls.SortNameBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+    $controls.SortNameBtn.BackColor = [System.Drawing.SystemColors]::Control
+    
+    $controls.SortSizeBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+    $controls.SortSizeBtn.BackColor = [System.Drawing.SystemColors]::Control
+    
+    $controls.SortCreatedBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
+    $controls.SortCreatedBtn.BackColor = [System.Drawing.SystemColors]::Control
+    
+    # Устанавливаем эффект "нажатости" для активной кнопки
+    if ($global:activeSortButton -ne $null) {
+        $global:activeSortButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+        $global:activeSortButton.BackColor = [System.Drawing.Color]::LightBlue
+        $global:activeSortButton.ForeColor = [System.Drawing.Color]::DarkBlue
+    }
 }
 
 function BindHandlers {
@@ -364,9 +390,24 @@ function BindHandlers {
         }
     })
     $controls.ListView.Add_SelectedIndexChanged({ $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0 })
-    $controls.SortNameBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object Name; Refresh-ListView })
-    $controls.SortSizeBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending; Refresh-ListView })
-    $controls.SortCreatedBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object CreationTime -Descending; Refresh-ListView })
+    $controls.SortNameBtn.Add_Click({ 
+        $global:activeSortButton = $controls.SortNameBtn
+        Update-SortButtonStates
+        $global:filteredTable = $global:filteredTable | Sort-Object Name
+        Refresh-ListView 
+    })
+    $controls.SortSizeBtn.Add_Click({ 
+        $global:activeSortButton = $controls.SortSizeBtn
+        Update-SortButtonStates
+        $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
+        Refresh-ListView 
+    })
+    $controls.SortCreatedBtn.Add_Click({ 
+        $global:activeSortButton = $controls.SortCreatedBtn
+        Update-SortButtonStates
+        $global:filteredTable = $global:filteredTable | Sort-Object CreationTime -Descending
+        Refresh-ListView 
+    })
 
     $controls.DeleteBtn.Add_Click({
         $toDeleteIndexes = @()
