@@ -54,21 +54,6 @@ function CreateControls {
     $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortCreatedBtn.Width + $gap
 
-    $controls.TotalFilesLabel = New-Object Windows.Forms.Label
-    $controls.TotalFilesLabel.Text = "Total files: 0"
-    $controls.TotalFilesLabel.AutoSize = $true
-    $form.Controls.Add($controls.TotalFilesLabel)
-    $controls.TotalFilesLabel.Top = $y + [int]($btnH / 3)
-    $controls.TotalFilesLabel.Left = $x
-    $x += $controls.TotalFilesLabel.PreferredWidth + $gap
-
-    $controls.TotalSizeLabel = New-Object Windows.Forms.Label
-    $controls.TotalSizeLabel.Text = "Total size: 0 MB"
-    $controls.TotalSizeLabel.AutoSize = $true
-    $form.Controls.Add($controls.TotalSizeLabel)
-    $controls.TotalSizeLabel.Top = $y + [int]($btnH / 3)
-    $controls.TotalSizeLabel.Left = $x
-
     # Вторая строка
     $y2 = $y + $btnH + $gap
     $x2 = $gap
@@ -107,6 +92,27 @@ function CreateControls {
     $controls.IncreaseFontBtn.Text = "A+"
     $form.Controls.Add($controls.IncreaseFontBtn)
     $controls.IncreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
+    $x2 += $controls.IncreaseFontBtn.Width + $gap
+
+    $controls.TotalFilesLabel = New-Object Windows.Forms.Label
+    $controls.TotalFilesLabel.Text = "Total files: 0"
+    $controls.TotalFilesLabel.AutoSize = $true
+    $form.Controls.Add($controls.TotalFilesLabel)
+    $controls.TotalFilesLabel.Top = $y2 + $btnVPad
+    $controls.TotalFilesLabel.Left = $x2
+    # Сразу ставим шрифт, чтобы .Width был верным
+    $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
+    $controls.TotalFilesLabel.Font = $font
+    $form.PerformLayout()
+    $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
+
+    $controls.TotalSizeLabel = New-Object Windows.Forms.Label
+    $controls.TotalSizeLabel.Text = "Total size: 0 MB"
+    $controls.TotalSizeLabel.AutoSize = $true
+    $form.Controls.Add($controls.TotalSizeLabel)
+    $controls.TotalSizeLabel.Top = $y2 + $btnVPad
+    $controls.TotalSizeLabel.Left = $x2
+    $controls.TotalSizeLabel.Font = $font
 
     # Таблица файлов
     $controls.ListView = New-Object Windows.Forms.ListView
@@ -151,13 +157,6 @@ function LayoutOnlyFonts {
     $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortCreatedBtn.Width + $gap
 
-    $controls.TotalFilesLabel.Top = $y + [int]($btnH / 3)
-    $controls.TotalFilesLabel.Left = $x
-    $x += $controls.TotalFilesLabel.PreferredWidth + $gap
-
-    $controls.TotalSizeLabel.Top = $y + [int]($btnH / 3)
-    $controls.TotalSizeLabel.Left = $x
-
     $y2 = $y + $btnH + $gap
     $x2 = $gap
 
@@ -179,6 +178,18 @@ function LayoutOnlyFonts {
     $x2 += $controls.DecreaseFontBtn.Width + $gap
 
     $controls.IncreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
+    $x2 += $controls.IncreaseFontBtn.Width + $gap
+
+    $controls.TotalFilesLabel.Font = $font
+    $form.PerformLayout()
+    $controls.TotalFilesLabel.Top = $y2 + $btnVPad
+    $controls.TotalFilesLabel.Left = $x2
+    $form.PerformLayout()
+    $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
+
+    $controls.TotalSizeLabel.Font = $font
+    $controls.TotalSizeLabel.Top = $y2 + $btnVPad
+    $controls.TotalSizeLabel.Left = $x2
 
     # Таблица
     $gap = [int]($global:fontSize * 0.8)
@@ -215,7 +226,6 @@ function Refresh-InfoLabels {
         $sum = [math]::Round($sum, 2)
     }
     $controls.TotalFilesLabel.Text = "Total files: $count"
-    $controls.TotalSizeLabel.Left = $controls.TotalFilesLabel.Left + $controls.TotalFilesLabel.PreferredWidth + ([int]($global:fontSize*0.8))
     $controls.TotalSizeLabel.Text = "Total size: $sum MB"
 }
 
