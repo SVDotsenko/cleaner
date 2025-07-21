@@ -143,28 +143,40 @@ function CreateControls {
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
 
-    # Устанавливаем подсказки для элементов
+    # Set tooltips for UI elements
     $selectFolderTooltip = @"
-Позволяет выбрать другую папку для отображения и работы с её файлами.
+Allows you to select another folder to display and work with its files.
 "@
     $deleteTooltip = @"
-Удаляет выбранные в таблице файлы.
+Deletes the selected files from the table.
 "@
     $sortNameTooltip = @"
-Сортирует список файлов по имени (в алфавитном порядке, от А до Я).
+Sorts the file list by name (alphabetically, A to Z).
 "@
     $sortSizeTooltip = @"
-Сортирует список файлов по размеру (от большего к меньшему).
+Sorts the file list by size (from largest to smallest).
+"@
+    $sortCreatedTooltip = @"
+Sorts the file list by creation date (newest first).
 "@
     $searchBoxTooltip = @"
-Позволяет ввести шаблон поиска или регулярное выражение для фильтрации файлов по имени (поиск нечувствителен к регистру).
+Allows you to enter a search pattern or regular expression to filter files by name (case-insensitive search).
+"@
+    $decreaseFontTooltip = @"
+Decreases the font size of the interface.
+"@
+    $increaseFontTooltip = @"
+Increases the font size of the interface.
 "@
     
     $toolTip.SetToolTip($controls.SelectFolder, $selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn, $deleteTooltip.Trim())
     $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
+    $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
     $toolTip.SetToolTip($controls.SearchBox, $searchBoxTooltip.Trim())
+    $toolTip.SetToolTip($controls.DecreaseFontBtn, $decreaseFontTooltip.Trim())
+    $toolTip.SetToolTip($controls.IncreaseFontBtn, $increaseFontTooltip.Trim())
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
