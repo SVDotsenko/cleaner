@@ -26,26 +26,26 @@ function CreateControls {
 
     # Первая строка
     $controls.SelectFolder = New-Object Windows.Forms.Button
-    $controls.SelectFolder.Text = "Select Folder"
+    $controls.SelectFolder.Text = "Folder"
     $form.Controls.Add($controls.SelectFolder)
     $controls.SelectFolder.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
     $x += $controls.SelectFolder.Width + $gap
 
     $controls.DeleteBtn = New-Object Windows.Forms.Button
-    $controls.DeleteBtn.Text = "Delete Selected"
+    $controls.DeleteBtn.Text = "Delete"
     $controls.DeleteBtn.Enabled = $false
     $form.Controls.Add($controls.DeleteBtn)
     $controls.DeleteBtn.SetBounds($x, $y, 120 + $global:fontSize*2, $btnH)
     $x += $controls.DeleteBtn.Width + $gap
 
     $controls.SortNameBtn = New-Object Windows.Forms.Button
-    $controls.SortNameBtn.Text = "Sort by Name"
+    $controls.SortNameBtn.Text = "Name"
     $form.Controls.Add($controls.SortNameBtn)
     $controls.SortNameBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortNameBtn.Width + $gap
 
     $controls.SortSizeBtn = New-Object Windows.Forms.Button
-    $controls.SortSizeBtn.Text = "Sort by Size"
+    $controls.SortSizeBtn.Text = "Size"
     $form.Controls.Add($controls.SortSizeBtn)
     $controls.SortSizeBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortSizeBtn.Width + $gap
