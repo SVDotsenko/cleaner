@@ -62,11 +62,12 @@ function CreateControls {
     $controls.SearchLabel.Text = "Filter:"
     $controls.SearchLabel.AutoSize = $true
     $form.Controls.Add($controls.SearchLabel)
-    $controls.SearchLabel.Top = $y2 + $btnVPad
     # Сразу ставим шрифт, чтобы .Width был верным
     $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
     $controls.SearchLabel.Font = $font
     $form.PerformLayout()
+    # Центрируем по вертикали относительно кнопок
+    $controls.SearchLabel.Top = $y2 + ($btnH - $controls.SearchLabel.Height) / 2
     $controls.SearchLabel.Left = $x2
     $form.PerformLayout()
     $x2 += $controls.SearchLabel.Width + $gap
@@ -98,11 +99,13 @@ function CreateControls {
     $controls.TotalFilesLabel.Text = "Total files: 0"
     $controls.TotalFilesLabel.AutoSize = $true
     $form.Controls.Add($controls.TotalFilesLabel)
-    $controls.TotalFilesLabel.Top = $y2 + $btnVPad
-    $controls.TotalFilesLabel.Left = $x2
     # Сразу ставим шрифт, чтобы .Width был верным
     $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
     $controls.TotalFilesLabel.Font = $font
+    $form.PerformLayout()
+    # Центрируем по вертикали относительно кнопок
+    $controls.TotalFilesLabel.Top = $y2 + ($btnH - $controls.TotalFilesLabel.Height) / 2
+    $controls.TotalFilesLabel.Left = $x2
     $form.PerformLayout()
     $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
 
@@ -110,9 +113,11 @@ function CreateControls {
     $controls.TotalSizeLabel.Text = "Total size: 0 MB"
     $controls.TotalSizeLabel.AutoSize = $true
     $form.Controls.Add($controls.TotalSizeLabel)
-    $controls.TotalSizeLabel.Top = $y2 + $btnVPad
-    $controls.TotalSizeLabel.Left = $x2
     $controls.TotalSizeLabel.Font = $font
+    $form.PerformLayout()
+    # Центрируем по вертикали относительно кнопок
+    $controls.TotalSizeLabel.Top = $y2 + ($btnH - $controls.TotalSizeLabel.Height) / 2
+    $controls.TotalSizeLabel.Left = $x2
 
     # Таблица файлов
     $controls.ListView = New-Object Windows.Forms.ListView
@@ -164,7 +169,8 @@ function LayoutOnlyFonts {
     $controls.SearchLabel.Font = $font
     $form.PerformLayout()
     $controls.SearchLabel.Left = $x2
-    $controls.SearchLabel.Top = $y2 + $btnVPad
+    # Центрируем по вертикали относительно кнопок
+    $controls.SearchLabel.Top = $y2 + ($btnH - $controls.SearchLabel.Height) / 2
     $form.PerformLayout()
     $x2 += $controls.SearchLabel.Width + $gap
 
@@ -182,13 +188,16 @@ function LayoutOnlyFonts {
 
     $controls.TotalFilesLabel.Font = $font
     $form.PerformLayout()
-    $controls.TotalFilesLabel.Top = $y2 + $btnVPad
+    # Центрируем по вертикали относительно кнопок
+    $controls.TotalFilesLabel.Top = $y2 + ($btnH - $controls.TotalFilesLabel.Height) / 2
     $controls.TotalFilesLabel.Left = $x2
     $form.PerformLayout()
     $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
 
     $controls.TotalSizeLabel.Font = $font
-    $controls.TotalSizeLabel.Top = $y2 + $btnVPad
+    $form.PerformLayout()
+    # Центрируем по вертикали относительно кнопок
+    $controls.TotalSizeLabel.Top = $y2 + ($btnH - $controls.TotalSizeLabel.Height) / 2
     $controls.TotalSizeLabel.Left = $x2
 
     # Таблица
