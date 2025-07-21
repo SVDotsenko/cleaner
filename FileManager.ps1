@@ -1,5 +1,3 @@
-#todo add date creation file field
-#todo add sort button by this field
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName Microsoft.VisualBasic
 
@@ -49,6 +47,12 @@ function CreateControls {
     $form.Controls.Add($controls.SortSizeBtn)
     $controls.SortSizeBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortSizeBtn.Width + $gap
+
+    $controls.SortCreatedBtn = New-Object Windows.Forms.Button
+    $controls.SortCreatedBtn.Text = "Created"
+    $form.Controls.Add($controls.SortCreatedBtn)
+    $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
+    $x += $controls.SortCreatedBtn.Width + $gap
 
     $controls.TotalFilesLabel = New-Object Windows.Forms.Label
     $controls.TotalFilesLabel.Text = "Total files: 0"
@@ -120,6 +124,7 @@ function CreateControls {
     $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
     $controls.ListView.Columns.Add("File Name", -1) | Out-Null  # -1 для автоматического размера
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
+    $controls.ListView.Columns.Add("Created", 100) | Out-Null
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
@@ -142,6 +147,9 @@ function LayoutOnlyFonts {
 
     $controls.SortSizeBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortSizeBtn.Width + $gap
+
+    $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
+    $x += $controls.SortCreatedBtn.Width + $gap
 
     $controls.TotalFilesLabel.Top = $y + [int]($btnH / 3)
     $controls.TotalFilesLabel.Left = $x
@@ -183,6 +191,7 @@ function LayoutOnlyFonts {
     $controls.DeleteBtn.Font = $font
     $controls.SortNameBtn.Font = $font
     $controls.SortSizeBtn.Font = $font
+    $controls.SortCreatedBtn.Font = $font
     $controls.TotalFilesLabel.Font = $font
     $controls.TotalSizeLabel.Font = $font
     $controls.SearchBox.Font = $font
@@ -215,6 +224,8 @@ function Refresh-ListView {
     foreach ($file in $global:filteredTable) {
         $item = New-Object Windows.Forms.ListViewItem($file.Name)
         $item.SubItems.Add("$($file.SizeMB)")
+        $createdDate = $file.CreationTime.ToString("dd.MM.yy")
+        $item.SubItems.Add($createdDate)
         $controls.ListView.Items.Add($item) | Out-Null
     }
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
@@ -236,6 +247,7 @@ function Load-FilesFromFolder {
                 Name   = $file.Name
                 SizeMB = [math]::Round($file.Length / 1MB, 2)
                 Path   = $file.FullName
+                CreationTime = $file.CreationTime
             }
         }
         $global:fileTable = $global:fileTable | Sort-Object SizeMB -Descending
@@ -294,6 +306,7 @@ function BindHandlers {
     $controls.ListView.Add_SelectedIndexChanged({ $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0 })
     $controls.SortNameBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object Name; Refresh-ListView })
     $controls.SortSizeBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending; Refresh-ListView })
+    $controls.SortCreatedBtn.Add_Click({ $global:filteredTable = $global:filteredTable | Sort-Object CreationTime -Descending; Refresh-ListView })
 
     $controls.DeleteBtn.Add_Click({
         $toDeleteIndexes = @()
