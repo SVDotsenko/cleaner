@@ -1,3 +1,5 @@
+#todo add date creation file field
+#todo add sort button by this field
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName Microsoft.VisualBasic
 
@@ -6,8 +8,8 @@ $global:fontFamily = "Segoe UI"
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
-$form.Width = 900
-$form.Height = 610
+$form.Width = 1200
+$form.Height = 800
 $form.MinimumSize = New-Object Drawing.Size(600,400)
 
 # Контейнер для элементов
@@ -116,8 +118,8 @@ function CreateControls {
     $controls.ListView.Top = $y2 + $btnH + $gap
     $controls.ListView.Width = $form.ClientSize.Width - $gap*2
     $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
-    $controls.ListView.Columns.Add("File Name", 470) | Out-Null
-    $controls.ListView.Columns.Add("Size (MB)", 100) | Out-Null
+    $controls.ListView.Columns.Add("File Name", -1) | Out-Null  # -1 для автоматического размера
+    $controls.ListView.Columns.Add("MB", 100) | Out-Null
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
@@ -216,6 +218,8 @@ function Refresh-ListView {
         $controls.ListView.Items.Add($item) | Out-Null
     }
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
+    # Автоматически подстраиваем ширину столбца File Name под контент
+    $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     Refresh-InfoLabels
 }
 
@@ -264,7 +268,7 @@ function BindHandlers {
             $global:fontSize += 1
             Set-AllFonts $global:fontSize
             LayoutOnlyFonts
-            $controls.ListView.Columns[0].Width = $controls.ListView.ClientSize.Width - $controls.ListView.Columns[1].Width - 20
+            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
         }
     })
 
@@ -273,7 +277,7 @@ function BindHandlers {
             $global:fontSize -= 1
             Set-AllFonts $global:fontSize
             LayoutOnlyFonts
-            $controls.ListView.Columns[0].Width = $controls.ListView.ClientSize.Width - $controls.ListView.Columns[1].Width - 20
+            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
         }
     })
 
@@ -333,7 +337,8 @@ $form.Add_Resize({
         $controls.ListView.Left = $gap
         $controls.ListView.Width = $form.ClientSize.Width - $gap*2
         $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
-        $controls.ListView.Columns[0].Width = $controls.ListView.ClientSize.Width - $controls.ListView.Columns[1].Width - 20
+        # Автоматически подстраиваем ширину столбца File Name под содержимое и доступное пространство
+        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     }
 })
 
