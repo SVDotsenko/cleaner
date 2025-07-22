@@ -293,7 +293,41 @@ $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null  # Отслеживает текущую активную кнопку сортировки
 
+function Rename-CallRecordingFiles {
+    if (-not (Test-Path $global:folderPath)) {
+        return
+    }
+    
+    $files = Get-ChildItem -Path $global:folderPath -File
+    $renamedCount = 0
+    
+    foreach ($file in $files) {
+        if ($file.Name.StartsWith("Call recording ")) {
+            $newName = $file.Name.Substring(15)  # Remove "Call recording " (15 characters)
+            if (-not [string]::IsNullOrWhiteSpace($newName)) {
+                $newPath = Join-Path $file.Directory.FullName $newName
+                try {
+                    # Check if a file with the new name already exists
+                    if (-not (Test-Path $newPath)) {
+                        Rename-Item -Path $file.FullName -NewName $newName -Force
+                        $renamedCount++
+                    }
+                } catch {
+                    # Ignore errors for individual files and continue with others
+                }
+            }
+        }
+    }
+    
+    if ($renamedCount -gt 0) {
+        [Windows.Forms.MessageBox]::Show("$renamedCount file(s) renamed (removed 'Call recording ' prefix).", "Rename Complete", 'OK', 'Information') | Out-Null
+    }
+}
+
 function Load-FilesFromFolder {
+    # First, rename any files that start with "Call recording "
+    Rename-CallRecordingFiles
+    
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
         $files = Get-ChildItem -Path $global:folderPath -File
