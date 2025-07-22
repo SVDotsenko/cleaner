@@ -327,7 +327,7 @@ function Rename-CallRecordingFiles {
 function Load-FilesFromFolder {
     # First, rename any files that start with "Call recording "
     Rename-CallRecordingFiles
-    
+
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
         $files = Get-ChildItem -Path $global:folderPath -File
@@ -339,15 +339,16 @@ function Load-FilesFromFolder {
                 CreationTime = $file.CreationTime
             }
         }
-        $global:fileTable = $global:fileTable | Sort-Object SizeMB -Descending
-        # Устанавливаем кнопку Size как активную по умолчанию, так как сортировка по умолчанию по размеру
-        $global:activeSortButton = $controls.SortSizeBtn
+        # Сортировка по дате создания по убыванию
+        $global:fileTable = $global:fileTable | Sort-Object CreationTime -Descending
+        # Устанавливаем кнопку Created как активную по умолчанию
+        $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
         Apply-Search
     } else {
         $global:fileTable = @()
-        # Устанавливаем кнопку Size как активную по умолчанию
-        $global:activeSortButton = $controls.SortSizeBtn
+        # Устанавливаем кнопку Created как активную по умолчанию
+        $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
         Apply-Search
     }
