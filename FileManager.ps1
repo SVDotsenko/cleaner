@@ -246,14 +246,31 @@ function Set-AllFonts($fontSize) {
 }
 
 function Refresh-InfoLabels {
-    $count = $global:filteredTable.Count
-    $sum = 0
-    if ($count -gt 0) {
-        $sum = ($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum
+    # Check if any files are selected
+    $selectedCount = $controls.ListView.SelectedItems.Count
+    
+    if ($selectedCount -gt 0) {
+        # Show statistics for selected files
+        $sum = 0
+        foreach ($selectedItem in $controls.ListView.SelectedItems) {
+            $fileIndex = $selectedItem.Index
+            $file = $global:filteredTable[$fileIndex]
+            $sum += $file.SizeMB
+        }
         $sum = [math]::Round($sum, 2)
+        $controls.TotalFilesLabel.Text = "Selected files: $selectedCount"
+        $controls.TotalSizeLabel.Text = "Selected size: $sum MB"
+    } else {
+        # Show statistics for all files (current behavior)
+        $count = $global:filteredTable.Count
+        $sum = 0
+        if ($count -gt 0) {
+            $sum = ($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum
+            $sum = [math]::Round($sum, 2)
+        }
+        $controls.TotalFilesLabel.Text = "Total files: $count"
+        $controls.TotalSizeLabel.Text = "Total size: $sum MB"
     }
-    $controls.TotalFilesLabel.Text = "Total files: $count"
-    $controls.TotalSizeLabel.Text = "Total size: $sum MB"
 }
 
 function Refresh-ListView {
@@ -366,7 +383,10 @@ function BindHandlers {
             Load-FilesFromFolder
         }
     })
-    $controls.ListView.Add_SelectedIndexChanged({ $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0 })
+    $controls.ListView.Add_SelectedIndexChanged({ 
+        $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0
+        Refresh-InfoLabels
+    })
     $controls.SortNameBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortNameBtn
         Update-SortButtonStates
