@@ -42,6 +42,14 @@ function CreateControls {
     $controls.DeleteBtn.SetBounds($x, $y, 120 + $global:fontSize*2, $btnH)
     $x += $controls.DeleteBtn.Width + $gap
 
+    $controls.DeleteToTrashCheckBox = New-Object Windows.Forms.CheckBox
+#    $controls.DeleteToTrashCheckBox.Text = "To Trash"
+    $controls.DeleteToTrashCheckBox.Checked = $true
+    $controls.DeleteToTrashCheckBox.AutoSize = $true
+    $form.Controls.Add($controls.DeleteToTrashCheckBox)
+    $controls.DeleteToTrashCheckBox.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
+    $x += $controls.DeleteToTrashCheckBox.Width + $gap
+
     $controls.SortNameBtn = New-Object Windows.Forms.Button
     $controls.SortNameBtn.Text = "Name"
     $form.Controls.Add($controls.SortNameBtn)
@@ -136,6 +144,9 @@ Allows you to select another folder to display and work with its files.
     $deleteTooltip = @"
 Deletes the selected files from the table.
 "@
+    $deleteToTrashTooltip = @"
+When checked, files are moved to the Recycle Bin. When unchecked, files are permanently deleted.
+"@
     $sortNameTooltip = @"
 Sorts the file list by name (alphabetically, A to Z).
 "@
@@ -157,6 +168,7 @@ Increases the font size of the interface.
     
     $toolTip.SetToolTip($controls.SelectFolder, $selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn, $deleteTooltip.Trim())
+    $toolTip.SetToolTip($controls.DeleteToTrashCheckBox, $deleteToTrashTooltip.Trim())
     $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
@@ -179,6 +191,9 @@ function LayoutOnlyFonts {
 
     $controls.DeleteBtn.SetBounds($x, $y, 120 + $global:fontSize*2, $btnH)
     $x += $controls.DeleteBtn.Width + $gap
+
+    $controls.DeleteToTrashCheckBox.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
+    $x += $controls.DeleteToTrashCheckBox.Width + $gap
 
     $controls.SortNameBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortNameBtn.Width + $gap
@@ -227,6 +242,7 @@ function LayoutOnlyFonts {
     $controls.ListView.Font = $font
     $controls.SelectFolder.Font = $font
     $controls.DeleteBtn.Font = $font
+    $controls.DeleteToTrashCheckBox.Font = $font
     $controls.SortNameBtn.Font = $font
     $controls.SortSizeBtn.Font = $font
     $controls.SortCreatedBtn.Font = $font
@@ -370,6 +386,18 @@ function Apply-Search {
     Refresh-ListView
 }
 
+function Move-FileToRecycleBin($filePath) {
+    try {
+        # Create Shell COM object
+        $shell = New-Object -ComObject Shell.Application
+        $item = $shell.Namespace(0).ParseName($filePath)
+        $item.InvokeVerb("delete")
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function Update-SortButtonStates {
     # Сбрасываем все кнопки сортировки в обычное состояние
     $controls.SortNameBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
@@ -448,20 +476,35 @@ function BindHandlers {
         }
         $toDeleteIndexes = $toDeleteIndexes | Sort-Object -Descending
         $deleted = 0
+        $useTrash = $controls.DeleteToTrashCheckBox.Checked
+        
         foreach ($i in $toDeleteIndexes) {
             $file = $global:filteredTable[$i]
+            $success = $false
+            
             try {
-                # Use Remove-Item for permanent deletion
-                Remove-Item -Path $file.Path -Force
-                $deleted++
-                $global:fileTable = $global:fileTable | Where-Object { $_.Path -ne $file.Path }
-                $global:filteredTable = $global:filteredTable | Where-Object { $_.Path -ne $file.Path }
+                if ($useTrash) {
+                    # Move to recycle bin
+                    $success = Move-FileToRecycleBin $file.Path
+                } else {
+                    # Permanent deletion
+                    Remove-Item -Path $file.Path -Force
+                    $success = $true
+                }
+                
+                if ($success) {
+                    $deleted++
+                    $global:fileTable = $global:fileTable | Where-Object { $_.Path -ne $file.Path }
+                    $global:filteredTable = $global:filteredTable | Where-Object { $_.Path -ne $file.Path }
+                }
             } catch {
                 # ignore errors for now
             }
         }
+        
         Refresh-ListView
-        [Windows.Forms.MessageBox]::Show("$deleted file(s) permanently deleted.", "Done", 'OK', 'Information') | Out-Null
+        $actionText = if ($useTrash) { "moved to Recycle Bin" } else { "permanently deleted" }
+        [Windows.Forms.MessageBox]::Show("$deleted file(s) $actionText.", "Done", 'OK', 'Information') | Out-Null
     })
 
     $controls.ListView.Add_DoubleClick({
