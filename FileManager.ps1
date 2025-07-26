@@ -507,7 +507,7 @@ function BindHandlers {
     $controls.SortNameBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortNameBtn
         Update-SortButtonStates
-        $global:filteredTable = $global:filteredTable | Sort-Object Name
+        $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
         Refresh-ListView 
     })
     $controls.SortSizeBtn.Add_Click({ 
