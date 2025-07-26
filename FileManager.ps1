@@ -72,17 +72,6 @@ function CreateControls {
     $y2 = $y + $btnH + $gap
     $x2 = $gap
 
-    $controls.SearchBox = New-Object Windows.Forms.TextBox
-    $form.Controls.Add($controls.SearchBox)
-    $controls.SearchBox.SetBounds($x2, $y2, 250 + $global:fontSize*5, $btnH)
-    $x2 += $controls.SearchBox.Width + $gap
-
-    $controls.SearchBtn = New-Object Windows.Forms.Button
-    $controls.SearchBtn.Text = "Filter"
-    $form.Controls.Add($controls.SearchBtn)
-    $controls.SearchBtn.SetBounds($x2, $y2, 80 + $global:fontSize*2, $btnH)
-    $x2 += $controls.SearchBtn.Width + $gap
-
     $controls.DecreaseFontBtn = New-Object Windows.Forms.Button
     $controls.DecreaseFontBtn.Text = "A-"
     $form.Controls.Add($controls.DecreaseFontBtn)
@@ -156,15 +145,6 @@ Sorts the file list by size (from largest to smallest).
     $sortCreatedTooltip = @"
 Sorts the file list by creation date (newest first).
 "@
-    $searchBoxTooltip = @"
-Allows you to enter a search pattern or regular expression to filter files by name (case-insensitive search).
-"@
-    $decreaseFontTooltip = @"
-Decreases the font size of the interface.
-"@
-    $increaseFontTooltip = @"
-Increases the font size of the interface.
-"@
     
     $toolTip.SetToolTip($controls.SelectFolder, $selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn, $deleteTooltip.Trim())
@@ -172,9 +152,6 @@ Increases the font size of the interface.
     $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
-    $toolTip.SetToolTip($controls.SearchBox, $searchBoxTooltip.Trim())
-    $toolTip.SetToolTip($controls.DecreaseFontBtn, $decreaseFontTooltip.Trim())
-    $toolTip.SetToolTip($controls.IncreaseFontBtn, $increaseFontTooltip.Trim())
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
@@ -206,12 +183,6 @@ function LayoutOnlyFonts {
 
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-
-    $controls.SearchBox.SetBounds($x2, $y2, 250 + $global:fontSize*5, $btnH)
-    $x2 += $controls.SearchBox.Width + $gap
-
-    $controls.SearchBtn.SetBounds($x2, $y2, 80 + $global:fontSize*2, $btnH)
-    $x2 += $controls.SearchBtn.Width + $gap
 
     $controls.DecreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
     $x2 += $controls.DecreaseFontBtn.Width + $gap
@@ -248,8 +219,6 @@ function LayoutOnlyFonts {
     $controls.SortCreatedBtn.Font = $font
     $controls.TotalFilesLabel.Font = $font
     $controls.TotalSizeLabel.Font = $font
-    $controls.SearchBox.Font = $font
-    $controls.SearchBtn.Font = $font
     $controls.DecreaseFontBtn.Font = $font
     $controls.IncreaseFontBtn.Font = $font
 }
@@ -500,8 +469,6 @@ function BindHandlers {
         }
     })
 
-    $controls.SearchBtn.Add_Click({ Apply-Search })
-    $controls.SearchBox.Add_KeyDown({ param($sender, $e) if ($e.KeyCode -eq 'Return') { Apply-Search } })
     $controls.SelectFolder.Add_Click({
         $dialog = New-Object Windows.Forms.FolderBrowserDialog
         $dialog.Description = "Select a folder"
