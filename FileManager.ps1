@@ -330,6 +330,26 @@ function Format-ExtractedDate($date) {
     return "N/A"
 }
 
+# ====== Функция для извлечения отображаемого имени файла ======
+function Get-DisplayNameFromFileName($fileName) {
+    $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+    if ($nameWithoutExt.Length -gt 0 -and [char]::IsLetter($nameWithoutExt[0])) {
+        # Если первый символ - буква, берём все начальные буквы подряд
+        $result = ""
+        foreach ($c in $nameWithoutExt.ToCharArray()) {
+            if ([char]::IsLetter($c)) {
+                $result += $c
+            } else {
+                break
+            }
+        }
+        return $result
+    } else {
+        # Если первый символ не буква, возвращаем имя файла с расширением
+        return $fileName
+    }
+}
+
 $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
@@ -378,18 +398,25 @@ function Load-FilesFromFolder {
             $extractedDate = Get-DateFromFileName $file.Name $file.Extension
             # Если дата не извлечена, используем дату создания файла
             $displayDate = if ($extractedDate -ne $null) { $extractedDate } else { $file.CreationTime }
+            # Извлекаем отображаемое имя
+            $displayName = Get-DisplayNameFromFileName $file.Name
             
             $global:fileTable += [PSCustomObject]@{
-                Name   = $file.Name
+                Name   = $displayName
                 SizeMB = [math]::Round($file.Length / 1MB, 2)
                 Path   = $file.FullName
                 CreationTime = $file.CreationTime
                 ExtractedDate = $extractedDate
                 DisplayDate = $displayDate
+                OrigName = $file.Name
             }
         }
-        # Сортировка по извлеченной дате по убыванию
-        $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
+        # Сортировка по новому имени
+        $global:fileTable = $global:fileTable | Sort-Object Name
+        # Сортировка по дате, если выбрана соответствующая кнопка
+        if ($global:activeSortButton -eq $controls.SortCreatedBtn) {
+            $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
+        }
         # Устанавливаем кнопку Created как активную по умолчанию
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
