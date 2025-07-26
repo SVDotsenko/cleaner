@@ -152,6 +152,15 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
+
+    # В CreateControls добавим чекбокс
+    $controls.ShowFullNameCheckBox = New-Object Windows.Forms.CheckBox
+    $controls.ShowFullNameCheckBox.Text = "Show full name"
+    $controls.ShowFullNameCheckBox.Checked = $false
+    $controls.ShowFullNameCheckBox.AutoSize = $true
+    $form.Controls.Add($controls.ShowFullNameCheckBox)
+    $controls.ShowFullNameCheckBox.SetBounds($x, $y, 140 + $global:fontSize*2, $btnH)
+    $x += $controls.ShowFullNameCheckBox.Width + $gap
 }
 
 # ====== Пересчитывает расположение элементов и обновляет только шрифт ======
@@ -221,6 +230,8 @@ function LayoutOnlyFonts {
     $controls.TotalSizeLabel.Font = $font
     $controls.DecreaseFontBtn.Font = $font
     $controls.IncreaseFontBtn.Font = $font
+    # В LayoutOnlyFonts добавим шрифт для чекбокса
+    $controls.ShowFullNameCheckBox.Font = $font
 }
 
 # ====== Служебные функции ======
@@ -261,7 +272,8 @@ function Refresh-InfoLabels {
 function Refresh-ListView {
     $controls.ListView.Items.Clear()
     foreach ($file in $global:filteredTable) {
-        $item = New-Object Windows.Forms.ListViewItem($file.Name)
+        $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
+        $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
         $displayDate = Format-ExtractedDate $file.DisplayDate
         $item.SubItems.Add($displayDate)
@@ -572,6 +584,9 @@ function BindHandlers {
             }
         }
     })
+
+    # В BindHandlers добавим обработчик для чекбокса
+    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Refresh-ListView })
 }
 
 $form.Add_Resize({
