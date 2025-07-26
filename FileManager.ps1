@@ -20,7 +20,6 @@ $toolTip.ReshowDelay = 500
 function CreateControls {
     $gap = [int]($global:fontSize * 0.8)
     $btnH = [int]($global:fontSize * 2.2)
-    $btnVPad = [int]($global:fontSize * 0.4)
     $y = $gap
     $x = $gap
     $controls.SelectFolder = New-Object Windows.Forms.Button
@@ -138,7 +137,6 @@ Sorts the file list by creation date (newest first).
 function LayoutOnlyFonts {
     $gap = [int]($global:fontSize * 0.8)
     $btnH = [int]($global:fontSize * 2.2)
-    $btnVPad = [int]($global:fontSize * 0.4)
     $y = $gap
     $x = $gap
     $controls.SelectFolder.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
