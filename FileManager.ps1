@@ -335,18 +335,16 @@ function Get-DateFromFileName($fileName, $extension) {
             }
         }
         ".mp3" {
-            # Ищем группу из 8 цифр, начинающуюся с "20" (формат YYYYMMDD)
-            if ($nameWithoutExt -match ".*?(\d{8})") {
+            # Ищем первые 8 цифр подряд, начинающиеся с "20" (формат YYYYMMDD)
+            if ($nameWithoutExt -match "(20\d{6})") {
                 $dateStr = $matches[1]
-                if ($dateStr.StartsWith("20")) {
-                    $year = $dateStr.Substring(0, 4)
-                    $month = $dateStr.Substring(4, 2)
-                    $day = $dateStr.Substring(6, 2)
-                    try {
-                        return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
-                    } catch {
-                        return $null
-                    }
+                $year = $dateStr.Substring(0, 4)
+                $month = $dateStr.Substring(4, 2)
+                $day = $dateStr.Substring(6, 2)
+                try {
+                    return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
+                } catch {
+                    return $null
                 }
             }
         }
