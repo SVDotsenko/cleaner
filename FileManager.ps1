@@ -411,14 +411,10 @@ function Load-FilesFromFolder {
                 OrigName = $file.Name
             }
         }
-        # Сортировка по новому имени
-        $global:fileTable = $global:fileTable | Sort-Object Name
-        # Сортировка по дате, если выбрана соответствующая кнопка
-        if ($global:activeSortButton -eq $controls.SortCreatedBtn) {
-            $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
-        }
         # Устанавливаем кнопку Created как активную по умолчанию
         $global:activeSortButton = $controls.SortCreatedBtn
+        # Применяем сортировку по дате по умолчанию
+        $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Update-SortButtonStates
         Apply-Search
     } else {
