@@ -294,14 +294,73 @@ function Refresh-ListView {
     foreach ($file in $global:filteredTable) {
         $item = New-Object Windows.Forms.ListViewItem($file.Name)
         $item.SubItems.Add("$($file.SizeMB)")
-        $createdDate = $file.CreationTime.ToString("dd.MM.yy")
-        $item.SubItems.Add($createdDate)
+        $displayDate = Format-ExtractedDate $file.DisplayDate
+        $item.SubItems.Add($displayDate)
         $controls.ListView.Items.Add($item) | Out-Null
     }
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
     # Автоматически подстраиваем ширину столбца File Name под контент
     $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     Refresh-InfoLabels
+}
+
+# ====== Функция для извлечения даты из имени файла ======
+function Get-DateFromFileName($fileName, $extension) {
+    $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+    
+    switch ($extension.ToLower()) {
+        ".m4a" {
+            # Ищем последнюю группу из 6 цифр подряд (формат YYMMDD)
+            if ($nameWithoutExt -match ".*?(\d{6})(?:_\d{6})?$") {
+                $dateStr = $matches[1]
+                $year = "20" + $dateStr.Substring(0, 2)
+                $month = $dateStr.Substring(2, 2)
+                $day = $dateStr.Substring(4, 2)
+                try {
+                    return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
+                } catch {
+                    return $null
+                }
+            }
+        }
+        ".ogg" {
+            # Ищем паттерн YYYY_MM_DD
+            if ($nameWithoutExt -match ".*?(\d{4}_\d{2}_\d{2})") {
+                $dateStr = $matches[1]
+                try {
+                    return [DateTime]::ParseExact($dateStr, "yyyy_MM_dd", $null)
+                } catch {
+                    return $null
+                }
+            }
+        }
+        ".mp3" {
+            # Ищем группу из 8 цифр, начинающуюся с "20" (формат YYYYMMDD)
+            if ($nameWithoutExt -match ".*?(\d{8})") {
+                $dateStr = $matches[1]
+                if ($dateStr.StartsWith("20")) {
+                    $year = $dateStr.Substring(0, 4)
+                    $month = $dateStr.Substring(4, 2)
+                    $day = $dateStr.Substring(6, 2)
+                    try {
+                        return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
+                    } catch {
+                        return $null
+                    }
+                }
+            }
+        }
+    }
+    
+    return $null
+}
+
+# ====== Функция для форматирования даты для отображения ======
+function Format-ExtractedDate($date) {
+    if ($date -ne $null) {
+        return $date.ToString("dd.MM.yy")
+    }
+    return "N/A"
 }
 
 $global:folderPath = "G:\My Drive\recordings"
@@ -346,17 +405,24 @@ function Load-FilesFromFolder {
 
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
-        $files = Get-ChildItem -Path $global:folderPath -File
+        $files = Get-ChildItem -Path $global:folderPath -File | Where-Object { $_.Extension -match "\.(m4a|mp3|ogg)$" }
         foreach ($file in $files) {
+            # Извлекаем дату из имени файла
+            $extractedDate = Get-DateFromFileName $file.Name $file.Extension
+            # Если дата не извлечена, используем дату создания файла
+            $displayDate = if ($extractedDate -ne $null) { $extractedDate } else { $file.CreationTime }
+            
             $global:fileTable += [PSCustomObject]@{
                 Name   = $file.Name
                 SizeMB = [math]::Round($file.Length / 1MB, 2)
                 Path   = $file.FullName
                 CreationTime = $file.CreationTime
+                ExtractedDate = $extractedDate
+                DisplayDate = $displayDate
             }
         }
-        # Сортировка по дате создания по убыванию
-        $global:fileTable = $global:fileTable | Sort-Object CreationTime -Descending
+        # Сортировка по извлеченной дате по убыванию
+        $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         # Устанавливаем кнопку Created как активную по умолчанию
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
@@ -465,7 +531,7 @@ function BindHandlers {
     $controls.SortCreatedBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
-        $global:filteredTable = $global:filteredTable | Sort-Object CreationTime -Descending
+        $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
         Refresh-ListView 
     })
 
