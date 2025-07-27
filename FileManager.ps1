@@ -235,7 +235,7 @@ function Update-ListView {
 function Update-ListViewPreserveScroll {
     # Save current scroll position and selected items
     $topItemIndex = -1
-    if ($controls.ListView.TopItem -ne $null) {
+    if ($null -ne $controls.ListView.TopItem) {
         $topItemIndex = $controls.ListView.TopItem.Index
     }
     
@@ -597,7 +597,7 @@ function BindHandlers {
 }
 
 $form.Add_Resize({
-    if ($controls.ListView -ne $null) {
+    if ($null -ne $controls.ListView) {
         $gap = [int]($global:fontSize * 0.8)
         $controls.ListView.Left = $gap
         $controls.ListView.Width = $form.ClientSize.Width - $gap*2
