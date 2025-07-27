@@ -314,6 +314,29 @@ function Update-ListViewTextColors {
             $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
         }
     }
+    
+    # Auto-resize columns and remember maximum widths
+    $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+    $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+    
+    # Remember maximum widths
+    $currentNameWidth = $controls.ListView.Columns[0].Width
+    $currentDateWidth = $controls.ListView.Columns[2].Width
+    
+    if ($currentNameWidth -gt $global:maxColumnWidths.Name) {
+        $global:maxColumnWidths.Name = $currentNameWidth
+    }
+    if ($currentDateWidth -gt $global:maxColumnWidths.Date) {
+        $global:maxColumnWidths.Date = $currentDateWidth
+    }
+    
+    # Set columns to maximum width if we have stored values
+    if ($global:maxColumnWidths.Name -gt 0) {
+        $controls.ListView.Columns[0].Width = $global:maxColumnWidths.Name
+    }
+    if ($global:maxColumnWidths.Date -gt 0) {
+        $controls.ListView.Columns[2].Width = $global:maxColumnWidths.Date
+    }
 }
 
 function Get-DateFromFileName($fileName, $extension) {
@@ -401,6 +424,7 @@ $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
+$global:maxColumnWidths = @{ Name = 0; Date = 0 }
 
 function Show-TrayNotification {
     param(
