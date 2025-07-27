@@ -232,6 +232,61 @@ function Update-ListView {
     Update-InfoLabels
 }
 
+function Update-ListViewPreserveScroll {
+    # Save current scroll position and selected items
+    $topItemIndex = -1
+    if ($controls.ListView.TopItem -ne $null) {
+        $topItemIndex = $controls.ListView.TopItem.Index
+    }
+    
+    $selectedIndexes = @()
+    foreach ($item in $controls.ListView.SelectedItems) {
+        $selectedIndexes += $item.Index
+    }
+    
+    # Debug info
+    Write-Host "Before update - TopItemIndex: $topItemIndex, SelectedCount: $($selectedIndexes.Count)"
+    
+    # Suspend layout updates to prevent flickering
+    $controls.ListView.BeginUpdate()
+    
+    $controls.ListView.Items.Clear()
+    foreach ($file in $global:filteredTable) {
+        $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
+        $item = New-Object Windows.Forms.ListViewItem($displayName)
+        $item.SubItems.Add("$($file.SizeMB)")
+        $displayDate = Format-ExtractedDate $file.DisplayDate $controls.ShowFullNameCheckBox.Checked
+        $item.SubItems.Add($displayDate)
+        $controls.ListView.Items.Add($item) | Out-Null
+    }
+    
+    # Debug info
+    Write-Host "After update - ItemsCount: $($controls.ListView.Items.Count), TopItemIndex: $topItemIndex"
+    
+    # Restore scroll position if possible
+    if ($topItemIndex -ge 0 -and $topItemIndex -lt $controls.ListView.Items.Count) {
+        Write-Host "Restoring scroll position to index: $topItemIndex"
+        $controls.ListView.TopItem = $controls.ListView.Items[$topItemIndex]
+    } else {
+        Write-Host "Cannot restore scroll position - index out of range"
+    }
+    
+    # Restore selected items if possible
+    foreach ($index in $selectedIndexes) {
+        if ($index -lt $controls.ListView.Items.Count) {
+            $controls.ListView.Items[$index].Selected = $true
+        }
+    }
+    
+    # Resume layout updates
+    $controls.ListView.EndUpdate()
+    
+    $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
+    $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+    $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+    Update-InfoLabels
+}
+
 function Get-DateFromFileName($fileName, $extension) {
     $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     switch ($extension.ToLower()) {
@@ -538,7 +593,7 @@ function BindHandlers {
             }
         }
     })
-    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListView })
+    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewPreserveScroll })
 }
 
 $form.Add_Resize({
