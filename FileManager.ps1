@@ -9,6 +9,7 @@ $form.Text = "File Manager"
 $form.Width = 1200
 $form.Height = 800
 $form.MinimumSize = New-Object Drawing.Size(600,400)
+$form.StartPosition = [Windows.Forms.FormStartPosition]::CenterScreen
 
 $controls = @{}
 
