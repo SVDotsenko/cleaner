@@ -340,8 +340,17 @@ function Rename-CallRecordingFiles {
         }
     }
     if ($renamedCount -gt 0) {
-        Write-Output "$renamedCount file(s) renamed (removed 'Call recording ' prefix)."
-        [System.Console]::Beep(800, 300)
+        try {
+            Add-Type -AssemblyName System.Windows.Forms
+            $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
+            $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
+            $notifyIcon.Visible = $true
+            $notifyIcon.ShowBalloonTip(3000, "File Manager", "$renamedCount file(s) renamed (removed 'Call recording ' prefix).", [System.Windows.Forms.ToolTipIcon]::Info)
+            Start-Sleep -Seconds 3
+            $notifyIcon.Dispose()
+        } catch {
+            [System.Windows.Forms.MessageBox]::Show("$renamedCount file(s) renamed (removed 'Call recording ' prefix).", "Files Renamed", 'OK', 'Information') | Out-Null
+        }
     }
 }
 
