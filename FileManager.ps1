@@ -318,6 +318,40 @@ $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
 
+function Show-TrayNotification {
+    param(
+        [string]$Title,
+        [string]$Message,
+        [int]$Duration = 3000,
+        [string]$Type = "Info"
+    )
+    
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
+        
+        # Set icon based on type
+        switch ($Type) {
+            "Error" { 
+                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error
+                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Error
+            }
+            default { 
+                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
+                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+            }
+        }
+        
+        $notifyIcon.Visible = $true
+        $notifyIcon.ShowBalloonTip($Duration, $Title, $Message, $toolTipIcon)
+        Start-Sleep -Milliseconds $Duration
+        $notifyIcon.Dispose()
+    } catch {
+        $messageBoxIcon = if ($Type -eq "Error") { 'Error' } else { 'Information' }
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', $messageBoxIcon) | Out-Null
+    }
+}
+
 function Rename-CallRecordingFiles {
     if (-not (Test-Path $global:folderPath)) {
         return
@@ -340,17 +374,7 @@ function Rename-CallRecordingFiles {
         }
     }
     if ($renamedCount -gt 0) {
-        try {
-            Add-Type -AssemblyName System.Windows.Forms
-            $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
-            $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
-            $notifyIcon.Visible = $true
-            $notifyIcon.ShowBalloonTip(3000, "File Manager", "$renamedCount file(s) renamed (removed 'Call recording ' prefix).", [System.Windows.Forms.ToolTipIcon]::Info)
-            Start-Sleep -Seconds 3
-            $notifyIcon.Dispose()
-        } catch {
-            [System.Windows.Forms.MessageBox]::Show("$renamedCount file(s) renamed (removed 'Call recording ' prefix).", "Files Renamed", 'OK', 'Information') | Out-Null
-        }
+        Show-TrayNotification -Title "File Manager" -Message "$renamedCount file(s) renamed (removed 'Call recording ' prefix)."
     }
 }
 
@@ -501,7 +525,7 @@ function BindHandlers {
         }
         Update-ListView
         $actionText = if ($useTrash) { "moved to Recycle Bin" } else { "permanently deleted" }
-        [Windows.Forms.MessageBox]::Show("$deleted file(s) $actionText.", "Done", 'OK', 'Information') | Out-Null
+        Show-TrayNotification -Title "Done" -Message "$deleted file(s) $actionText."
     })
     $controls.ListView.Add_DoubleClick({
         if ($controls.ListView.SelectedItems.Count -eq 1) {
@@ -510,7 +534,7 @@ function BindHandlers {
             try {
                 [System.Diagnostics.Process]::Start($file.Path) | Out-Null
             } catch {
-                [Windows.Forms.MessageBox]::Show("Cannot open file: $($file.Path)", "Error", 'OK', 'Error') | Out-Null
+                Show-TrayNotification -Title "Error" -Message "Cannot open file: $($file.Path)" -Type "Error"
             }
         }
     })
