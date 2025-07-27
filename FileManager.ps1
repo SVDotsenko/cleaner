@@ -222,7 +222,7 @@ function Refresh-ListView {
         $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
-        $displayDate = Format-ExtractedDate $file.DisplayDate
+        $displayDate = Format-ExtractedDate $file.DisplayDate $controls.ShowFullNameCheckBox.Checked
         $item.SubItems.Add($displayDate)
         $controls.ListView.Items.Add($item) | Out-Null
     }
@@ -235,36 +235,46 @@ function Get-DateFromFileName($fileName, $extension) {
     $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     switch ($extension.ToLower()) {
         ".m4a" {
-            if ($nameWithoutExt -match ".*?(\d{6})(?:_\d{6})?$") {
+            if ($nameWithoutExt -match ".*?(\d{6})_(\d{6})$") {
                 $dateStr = $matches[1]
+                $timeStr = $matches[2]
                 $year = "20" + $dateStr.Substring(0, 2)
                 $month = $dateStr.Substring(2, 2)
                 $day = $dateStr.Substring(4, 2)
+                $hour = $timeStr.Substring(0, 2)
+                $minute = $timeStr.Substring(2, 2)
+                $second = $timeStr.Substring(4, 2)
                 try {
-                    return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
+                    return [DateTime]::ParseExact("$year-$month-$day $hour`:$minute`:$second", 'yyyy-MM-dd HH:mm:ss', $null)
                 } catch {
                     return $null
                 }
             }
         }
         ".ogg" {
-            if ($nameWithoutExt -match ".*?(\d{4}_\d{2}_\d{2})") {
+            if ($nameWithoutExt -match ".*?(\d{4}_\d{2}_\d{2})_(\d{2}_\d{2}_\d{2})") {
                 $dateStr = $matches[1]
+                $timeStr = $matches[2]
                 try {
-                    return [DateTime]::ParseExact($dateStr, "yyyy_MM_dd", $null)
+                    $dateTime = [DateTime]::ParseExact("$dateStr $timeStr", 'yyyy_MM_dd HH_mm_ss', $null)
+                    return $dateTime
                 } catch {
                     return $null
                 }
             }
         }
         ".mp3" {
-            if ($nameWithoutExt -match "(20\d{6})") {
+            if ($nameWithoutExt -match "(20\d{6})(\d{6})") {
                 $dateStr = $matches[1]
+                $timeStr = $matches[2]
                 $year = $dateStr.Substring(0, 4)
                 $month = $dateStr.Substring(4, 2)
                 $day = $dateStr.Substring(6, 2)
+                $hour = $timeStr.Substring(0, 2)
+                $minute = $timeStr.Substring(2, 2)
+                $second = $timeStr.Substring(4, 2)
                 try {
-                    return [DateTime]::ParseExact("$year-$month-$day", "yyyy-MM-dd", $null)
+                    return [DateTime]::ParseExact("$year-$month-$day $hour`:$minute`:$second", 'yyyy-MM-dd HH:mm:ss', $null)
                 } catch {
                     return $null
                 }
@@ -274,9 +284,13 @@ function Get-DateFromFileName($fileName, $extension) {
     return $null
 }
 
-function Format-ExtractedDate($date) {
+function Format-ExtractedDate($date, $showTime = $false) {
     if ($date -ne $null) {
-        return $date.ToString("dd.MM.yy")
+        if ($showTime) {
+            return $date.ToString("dd.MM.yy HH:mm:ss")
+        } else {
+            return $date.ToString("dd.MM.yy")
+        }
     }
     return "N/A"
 }
