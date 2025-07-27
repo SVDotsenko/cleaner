@@ -578,7 +578,7 @@ function BindHandlers {
             } catch {
             }
         }
-        Update-ListView
+        Update-ListViewPreserveScroll
         $actionText = if ($useTrash) { "moved to Recycle Bin" } else { "permanently deleted" }
         Show-TrayNotification -Title "Done" -Message "$deleted file(s) $actionText."
     })
