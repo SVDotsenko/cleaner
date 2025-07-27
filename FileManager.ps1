@@ -244,9 +244,6 @@ function Update-ListViewPreserveScroll {
         $selectedIndexes += $item.Index
     }
     
-    # Debug info
-    Write-Host "Before update - TopItemIndex: $topItemIndex, SelectedCount: $($selectedIndexes.Count)"
-    
     # Suspend layout updates to prevent flickering
     $controls.ListView.BeginUpdate()
     
@@ -260,15 +257,9 @@ function Update-ListViewPreserveScroll {
         $controls.ListView.Items.Add($item) | Out-Null
     }
     
-    # Debug info
-    Write-Host "After update - ItemsCount: $($controls.ListView.Items.Count), TopItemIndex: $topItemIndex"
-    
     # Restore scroll position if possible
     if ($topItemIndex -ge 0 -and $topItemIndex -lt $controls.ListView.Items.Count) {
-        Write-Host "Restoring scroll position to index: $topItemIndex"
         $controls.ListView.TopItem = $controls.ListView.Items[$topItemIndex]
-    } else {
-        Write-Host "Cannot restore scroll position - index out of range"
     }
     
     # Restore selected items if possible
@@ -380,6 +371,9 @@ function Show-TrayNotification {
         [int]$Duration = 3000,
         [string]$Type = "Info"
     )
+    
+    # Log to console
+    Write-Host "[$Type] $Title`: $Message"
     
     try {
         Add-Type -AssemblyName System.Windows.Forms
