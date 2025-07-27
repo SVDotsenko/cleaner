@@ -192,7 +192,7 @@ function Set-AllFonts($fontSize) {
     $form.Font = $font
 }
 
-function Refresh-InfoLabels {
+function Update-InfoLabels {
     $selectedCount = $controls.ListView.SelectedItems.Count
     if ($selectedCount -gt 0) {
         $sum = 0
@@ -216,7 +216,7 @@ function Refresh-InfoLabels {
     }
 }
 
-function Refresh-ListView {
+function Update-ListView {
     $controls.ListView.Items.Clear()
     foreach ($file in $global:filteredTable) {
         $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
@@ -229,7 +229,7 @@ function Refresh-ListView {
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
     $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-    Refresh-InfoLabels
+    Update-InfoLabels
 }
 
 function Get-DateFromFileName($fileName, $extension) {
@@ -286,14 +286,14 @@ function Get-DateFromFileName($fileName, $extension) {
 }
 
 function Format-ExtractedDate($date, $showTime = $false) {
-    if ($date -ne $null) {
-        if ($showTime) {
-            return $date.ToString("dd.MM.yy HH:mm:ss")
-        } else {
-            return $date.ToString("dd.MM.yy")
-        }
+    if ($null -eq $date) {
+        return "N/A"
     }
-    return "N/A"
+    if ($showTime) {
+        return $date.ToString("dd.MM.yy HH:mm:ss")
+    } else {
+        return $date.ToString("dd.MM.yy")
+    }
 }
 
 function Get-DisplayNameFromFileName($fileName) {
@@ -344,14 +344,14 @@ function Rename-CallRecordingFiles {
     # }
 }
 
-function Load-FilesFromFolder {
+function Get-FilesFromFolder {
     Rename-CallRecordingFiles
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
         $files = Get-ChildItem -Path $global:folderPath -File | Where-Object { $_.Extension -match "\.(m4a|mp3|ogg)$" }
         foreach ($file in $files) {
             $extractedDate = Get-DateFromFileName $file.Name $file.Extension
-            $displayDate = if ($extractedDate -ne $null) { $extractedDate } else { $file.CreationTime }
+            $displayDate = if ($null -eq $extractedDate) { $file.CreationTime } else { $extractedDate }
             $displayName = Get-DisplayNameFromFileName $file.Name
             $global:fileTable += [PSCustomObject]@{
                 Name   = $displayName
@@ -366,16 +366,16 @@ function Load-FilesFromFolder {
         $global:activeSortButton = $controls.SortCreatedBtn
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Update-SortButtonStates
-        Apply-Search
+        Invoke-Search
     } else {
         $global:fileTable = @()
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
-        Apply-Search
+        Invoke-Search
     }
 }
 
-function Apply-Search {
+function Invoke-Search {
     $pattern = $controls.SearchBox.Text
     if ([string]::IsNullOrWhiteSpace($pattern)) {
         $global:filteredTable = $global:fileTable
@@ -388,7 +388,7 @@ function Apply-Search {
             $global:filteredTable = $global:fileTable | Where-Object { $_.Name.ToLower() -like "*$p*" }
         }
     }
-    Refresh-ListView
+    Update-ListView
 }
 
 function Move-FileToRecycleBin($filePath) {
@@ -409,7 +409,7 @@ function Update-SortButtonStates {
     $controls.SortSizeBtn.BackColor = [System.Drawing.SystemColors]::Control
     $controls.SortCreatedBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $controls.SortCreatedBtn.BackColor = [System.Drawing.SystemColors]::Control
-    if ($global:activeSortButton -ne $null) {
+    if ($null -ne $global:activeSortButton) {
         $global:activeSortButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
         $global:activeSortButton.BackColor = [System.Drawing.Color]::LightBlue
         $global:activeSortButton.ForeColor = [System.Drawing.Color]::DarkBlue
@@ -438,30 +438,30 @@ function BindHandlers {
         $dialog.Description = "Select a folder"
         if ($dialog.ShowDialog() -eq [Windows.Forms.DialogResult]::OK) {
             $global:folderPath = $dialog.SelectedPath
-            Load-FilesFromFolder
+            Get-FilesFromFolder
         }
     })
     $controls.ListView.Add_SelectedIndexChanged({ 
         $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0
-        Refresh-InfoLabels
+        Update-InfoLabels
     })
     $controls.SortNameBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortNameBtn
         Update-SortButtonStates
         $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
-        Refresh-ListView 
+        Update-ListView 
     })
     $controls.SortSizeBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortSizeBtn
         Update-SortButtonStates
         $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
-        Refresh-ListView 
+        Update-ListView 
     })
     $controls.SortCreatedBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
         $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
-        Refresh-ListView 
+        Update-ListView 
     })
     $controls.DeleteBtn.Add_Click({
         $toDeleteIndexes = @()
@@ -489,7 +489,7 @@ function BindHandlers {
             } catch {
             }
         }
-        Refresh-ListView
+        Update-ListView
         $actionText = if ($useTrash) { "moved to Recycle Bin" } else { "permanently deleted" }
         [Windows.Forms.MessageBox]::Show("$deleted file(s) $actionText.", "Done", 'OK', 'Information') | Out-Null
     })
@@ -504,7 +504,7 @@ function BindHandlers {
             }
         }
     })
-    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Refresh-ListView })
+    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListView })
 }
 
 $form.Add_Resize({
@@ -523,7 +523,7 @@ $form.Add_Shown({
     CreateControls
     Set-AllFonts $global:fontSize
     BindHandlers
-    Load-FilesFromFolder
+    Get-FilesFromFolder
     $form.Activate()
 })
 
