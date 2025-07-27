@@ -339,9 +339,9 @@ function Rename-CallRecordingFiles {
             }
         }
     }
-    # if ($renamedCount -gt 0) {
-    #     [Windows.Forms.MessageBox]::Show("$renamedCount file(s) renamed (removed 'Call recording ' prefix).", "Rename Complete", 'OK', 'Information') | Out-Null
-    # }
+    if ($renamedCount -gt 0) {
+        Write-Output "$renamedCount file(s) renamed (removed 'Call recording ' prefix)."
+    }
 }
 
 function Get-FilesFromFolder {
