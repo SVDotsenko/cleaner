@@ -341,6 +341,7 @@ function Rename-CallRecordingFiles {
     }
     if ($renamedCount -gt 0) {
         Write-Output "$renamedCount file(s) renamed (removed 'Call recording ' prefix)."
+        [System.Console]::Beep(800, 300)
     }
 }
 
