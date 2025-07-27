@@ -219,6 +219,7 @@ function Update-InfoLabels {
 function Update-ListView {
     $controls.ListView.Items.Clear()
     foreach ($file in $global:filteredTable) {
+        # Show names and dates based on current checkbox state
         $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
@@ -230,6 +231,7 @@ function Update-ListView {
     $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     Update-InfoLabels
+    Update-ListViewTextColors
 }
 
 function Update-ListViewPreserveScroll {
@@ -276,6 +278,42 @@ function Update-ListViewPreserveScroll {
     $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     Update-InfoLabels
+    Update-ListViewTextColors
+}
+
+function Update-ListViewTextColors {
+    # Update text display based on ShowFullName checkbox state
+    foreach ($item in $controls.ListView.Items) {
+        $fileIndex = $item.Index
+        if ($fileIndex -lt $global:filteredTable.Count) {
+            $file = $global:filteredTable[$fileIndex]
+            
+            # Update name column text
+            if ($controls.ShowFullNameCheckBox.Checked) {
+                # Show full name
+                $item.Text = $file.OrigName
+                $item.ForeColor = [System.Drawing.Color]::Black
+            } else {
+                # Show short name
+                $item.Text = $file.Name
+                $item.ForeColor = [System.Drawing.Color]::Black
+            }
+            
+            # Update date column text
+            if ($controls.ShowFullNameCheckBox.Checked) {
+                # Show full date with time
+                $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $true
+                $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
+            } else {
+                # Show short date without time
+                $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $false
+                $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
+            }
+            
+            # Size column always black
+            $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
+        }
+    }
 }
 
 function Get-DateFromFileName($fileName, $extension) {
@@ -587,7 +625,7 @@ function BindHandlers {
             }
         }
     })
-    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewPreserveScroll })
+    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewTextColors })
 }
 
 $form.Add_Resize({
