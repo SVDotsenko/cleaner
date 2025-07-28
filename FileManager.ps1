@@ -57,25 +57,14 @@ function CreateControls {
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-    $controls.TotalFilesLabel = New-Object Windows.Forms.Label
-    $controls.TotalFilesLabel.Text = "Total files: 0"
-    $controls.TotalFilesLabel.AutoSize = $true
-    $form.Controls.Add($controls.TotalFilesLabel)
-    $font = New-Object System.Drawing.Font($global:fontFamily, $global:fontSize)
-    $controls.TotalFilesLabel.Font = $font
-    $form.PerformLayout()
-    $controls.TotalFilesLabel.Top = $y2 + ($btnH - $controls.TotalFilesLabel.Height) / 2
-    $controls.TotalFilesLabel.Left = $x2
-    $form.PerformLayout()
-    $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
-    $controls.TotalSizeLabel = New-Object Windows.Forms.Label
-    $controls.TotalSizeLabel.Text = "Total size: 0 MB"
-    $controls.TotalSizeLabel.AutoSize = $true
-    $form.Controls.Add($controls.TotalSizeLabel)
-    $controls.TotalSizeLabel.Font = $font
-    $form.PerformLayout()
-    $controls.TotalSizeLabel.Top = $y2 + ($btnH - $controls.TotalSizeLabel.Height) / 2
-    $controls.TotalSizeLabel.Left = $x2
+    
+    # Create StatusStrip instead of labels
+    $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
+    $controls.StatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
+    $controls.StatusLabel.Text = "Total files: 0 | Total size: 0 MB"
+    $controls.StatusStrip.Items.Add($controls.StatusLabel)
+    $form.Controls.Add($controls.StatusStrip)
+    
     $controls.ListView = New-Object Windows.Forms.ListView
     $controls.ListView.View = 'Details'
     $controls.ListView.FullRowSelect = $true
@@ -144,21 +133,13 @@ function LayoutOnlyFonts {
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-    $controls.TotalFilesLabel.Font = $font
-    $form.PerformLayout()
-    $controls.TotalFilesLabel.Top = $y2 + ($btnH - $controls.TotalFilesLabel.Height) / 2
-    $controls.TotalFilesLabel.Left = $x2
-    $form.PerformLayout()
-    $x2 += $controls.TotalFilesLabel.PreferredWidth + $gap
-    $controls.TotalSizeLabel.Font = $font
-    $form.PerformLayout()
-    $controls.TotalSizeLabel.Top = $y2 + ($btnH - $controls.TotalSizeLabel.Height) / 2
-    $controls.TotalSizeLabel.Left = $x2
+    $controls.StatusLabel.Font = $font
     $gap = [int]($global:fontSize * 0.8)
     $controls.ListView.Left = $gap
     $controls.ListView.Top = $y2 + $btnH + $gap
     $controls.ListView.Width = $form.ClientSize.Width - $gap*2
     $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
+    $form.PerformLayout()
     $controls.ListView.Font = $font
     $controls.SelectFolder.Font = $font
     $controls.DeleteBtn.Font = $font
@@ -166,9 +147,7 @@ function LayoutOnlyFonts {
     $controls.SortNameBtn.Font = $font
     $controls.SortSizeBtn.Font = $font
     $controls.SortCreatedBtn.Font = $font
-    $controls.TotalFilesLabel.Font = $font
-    $controls.TotalSizeLabel.Font = $font
-    $controls.ShowFullNameCheckBox.Font = $font
+    $controls.StatusLabel.Font = $font
 }
 
 function Set-AllFonts($fontSize) {
@@ -187,8 +166,7 @@ function Update-InfoLabels {
             $sum += $file.SizeMB
         }
         $sum = [math]::Round($sum, 2)
-        $controls.TotalFilesLabel.Text = "Selected files: $selectedCount"
-        $controls.TotalSizeLabel.Text = "Selected size: $sum MB"
+        $controls.StatusLabel.Text = "Selected files: $selectedCount | Selected size: $sum MB"
     } else {
         $count = $global:filteredTable.Count
         $sum = 0
@@ -196,8 +174,7 @@ function Update-InfoLabels {
             $sum = ($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum
             $sum = [math]::Round($sum, 2)
         }
-        $controls.TotalFilesLabel.Text = "Total files: $count"
-        $controls.TotalSizeLabel.Text = "Total size: $sum MB"
+        $controls.StatusLabel.Text = "Total files: $count | Total size: $sum MB"
     }
 }
 
