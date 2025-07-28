@@ -64,25 +64,22 @@ function CreateControls {
     $controls.StatusLabel.Text = "Total files: 0 | Total size: 0 MB"
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
     
-    # Add spacer to push sorting text and ProgressBar to the right
-    $controls.Spacer = New-Object Windows.Forms.ToolStripStatusLabel
-    $controls.Spacer.Spring = $true
-    $controls.StatusStrip.Items.Add($controls.Spacer)
-    
-    # Add sorting status label (will be on the right, before ProgressBar)
-    $controls.SortingStatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
-    $controls.SortingStatusLabel.Text = ""
-    $controls.SortingStatusLabel.Visible = $false
-    $controls.StatusStrip.Items.Add($controls.SortingStatusLabel)
-    
-    # Add ProgressBar to StatusStrip (will be on the right)
+    # Add ProgressBar to StatusStrip (will take full width during sorting)
     $controls.ProgressBar = New-Object Windows.Forms.ToolStripProgressBar
     $controls.ProgressBar.Visible = $false
-    $controls.ProgressBar.Width = 300
     $controls.ProgressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
     $controls.ProgressBar.Step = 1
     $controls.ProgressBar.Maximum = 100
     $controls.StatusStrip.Items.Add($controls.ProgressBar)
+    
+    # Add full-width ProgressBar that will overlay StatusStrip during sorting
+    $controls.FullWidthProgressBar = New-Object Windows.Forms.ProgressBar
+    $controls.FullWidthProgressBar.Visible = $false
+    $controls.FullWidthProgressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $controls.FullWidthProgressBar.Step = 1
+    $controls.FullWidthProgressBar.Maximum = 100
+    $controls.FullWidthProgressBar.Height = 20
+    $form.Controls.Add($controls.FullWidthProgressBar)
     
     $form.Controls.Add($controls.StatusStrip)
     
@@ -169,15 +166,14 @@ function LayoutOnlyFonts {
     $controls.SortSizeBtn.Font = $font
     $controls.SortCreatedBtn.Font = $font
     $controls.StatusLabel.Font = $font
-    $controls.SortingStatusLabel.Font = $font
-    # ProgressBar and Spacer don't need font setting
+    # ProgressBar doesn't need font setting
 }
 
 function Set-AllFonts($fontSize) {
     $font = New-Object System.Drawing.Font($global:fontFamily, $fontSize)
     foreach ($ctrl in $controls.Values) { 
-        if ($ctrl -is [System.Windows.Forms.ToolStripProgressBar] -or ($ctrl -is [System.Windows.Forms.ToolStripStatusLabel] -and $ctrl.Spring)) {
-            # ProgressBar and Spring spacer don't have Font property, skip them
+        if ($ctrl -is [System.Windows.Forms.ToolStripProgressBar] -or $ctrl -is [System.Windows.Forms.ProgressBar]) {
+            # ProgressBars don't have Font property, skip them
             continue
         }
         $ctrl.Font = $font 
@@ -331,18 +327,28 @@ function Show-SortProgress {
         [string]$SortType
     )
     
-    $controls.ProgressBar.Visible = $true
-    $controls.ProgressBar.Value = 0
-    $controls.ProgressBar.Maximum = 100
+    # Position full-width ProgressBar over StatusStrip
+    $controls.FullWidthProgressBar.Left = 0
+    $controls.FullWidthProgressBar.Top = $form.ClientSize.Height - $controls.FullWidthProgressBar.Height
+    $controls.FullWidthProgressBar.Width = $form.ClientSize.Width
+    $controls.FullWidthProgressBar.BringToFront()
+    
+    # Hide statistics and show full-width ProgressBar
+    $controls.StatusLabel.Visible = $false
+    $controls.FullWidthProgressBar.Visible = $true
+    $controls.FullWidthProgressBar.Value = 0
+    $controls.FullWidthProgressBar.Maximum = 100
     
     # Simulate sorting progress with 10 steps
     for ($i = 0; $i -le 100; $i += 10) {
-        $controls.ProgressBar.Value = $i
+        $controls.FullWidthProgressBar.Value = $i
         [System.Windows.Forms.Application]::DoEvents()
         Start-Sleep -Milliseconds 20
     }
     
-    $controls.ProgressBar.Visible = $false
+    # Hide full-width ProgressBar and show statistics again
+    $controls.FullWidthProgressBar.Visible = $false
+    $controls.StatusLabel.Visible = $true
     Update-InfoLabels
 }
 
