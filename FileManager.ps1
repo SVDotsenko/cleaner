@@ -57,16 +57,6 @@ function CreateControls {
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-    $controls.DecreaseFontBtn = New-Object Windows.Forms.Button
-    $controls.DecreaseFontBtn.Text = "A-"
-    $form.Controls.Add($controls.DecreaseFontBtn)
-    $controls.DecreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
-    $x2 += $controls.DecreaseFontBtn.Width + $gap
-    $controls.IncreaseFontBtn = New-Object Windows.Forms.Button
-    $controls.IncreaseFontBtn.Text = "A+"
-    $form.Controls.Add($controls.IncreaseFontBtn)
-    $controls.IncreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
-    $x2 += $controls.IncreaseFontBtn.Width + $gap
     $controls.TotalFilesLabel = New-Object Windows.Forms.Label
     $controls.TotalFilesLabel.Text = "Total files: 0"
     $controls.TotalFilesLabel.AutoSize = $true
@@ -128,7 +118,7 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
     $controls.ShowFullNameCheckBox = New-Object Windows.Forms.CheckBox
     $controls.ShowFullNameCheckBox.Text = "Show full name"
-    $controls.ShowFullNameCheckBox.Checked = $false
+    $controls.ShowFullNameCheckBox.Checked = $true
     $controls.ShowFullNameCheckBox.AutoSize = $true
     $form.Controls.Add($controls.ShowFullNameCheckBox)
     $controls.ShowFullNameCheckBox.SetBounds($x, $y, 140 + $global:fontSize*2, $btnH)
@@ -154,10 +144,6 @@ function LayoutOnlyFonts {
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
     $x2 = $gap
-    $controls.DecreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
-    $x2 += $controls.DecreaseFontBtn.Width + $gap
-    $controls.IncreaseFontBtn.SetBounds($x2, $y2, 40 + $global:fontSize, $btnH)
-    $x2 += $controls.IncreaseFontBtn.Width + $gap
     $controls.TotalFilesLabel.Font = $font
     $form.PerformLayout()
     $controls.TotalFilesLabel.Top = $y2 + ($btnH - $controls.TotalFilesLabel.Height) / 2
@@ -182,8 +168,6 @@ function LayoutOnlyFonts {
     $controls.SortCreatedBtn.Font = $font
     $controls.TotalFilesLabel.Font = $font
     $controls.TotalSizeLabel.Font = $font
-    $controls.DecreaseFontBtn.Font = $font
-    $controls.IncreaseFontBtn.Font = $font
     $controls.ShowFullNameCheckBox.Font = $font
 }
 
@@ -559,22 +543,6 @@ function Update-SortButtonStates {
 }
 
 function BindHandlers {
-    $controls.IncreaseFontBtn.Add_Click({
-        if ($global:fontSize -lt 32) {
-            $global:fontSize += 1
-            Set-AllFonts $global:fontSize
-            LayoutOnlyFonts
-            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        }
-    })
-    $controls.DecreaseFontBtn.Add_Click({
-        if ($global:fontSize -gt 5) {
-            $global:fontSize -= 1
-            Set-AllFonts $global:fontSize
-            LayoutOnlyFonts
-            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        }
-    })
     $controls.SelectFolder.Add_Click({
         $dialog = New-Object Windows.Forms.FolderBrowserDialog
         $dialog.Description = "Select a folder"
