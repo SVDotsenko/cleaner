@@ -63,6 +63,27 @@ function CreateControls {
     $controls.StatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
     $controls.StatusLabel.Text = "Total files: 0 | Total size: 0 MB"
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
+    
+    # Add spacer to push sorting text and ProgressBar to the right
+    $controls.Spacer = New-Object Windows.Forms.ToolStripStatusLabel
+    $controls.Spacer.Spring = $true
+    $controls.StatusStrip.Items.Add($controls.Spacer)
+    
+    # Add sorting status label (will be on the right, before ProgressBar)
+    $controls.SortingStatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
+    $controls.SortingStatusLabel.Text = ""
+    $controls.SortingStatusLabel.Visible = $false
+    $controls.StatusStrip.Items.Add($controls.SortingStatusLabel)
+    
+    # Add ProgressBar to StatusStrip (will be on the right)
+    $controls.ProgressBar = New-Object Windows.Forms.ToolStripProgressBar
+    $controls.ProgressBar.Visible = $false
+    $controls.ProgressBar.Width = 300
+    $controls.ProgressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $controls.ProgressBar.Step = 1
+    $controls.ProgressBar.Maximum = 100
+    $controls.StatusStrip.Items.Add($controls.ProgressBar)
+    
     $form.Controls.Add($controls.StatusStrip)
     
     $controls.ListView = New-Object Windows.Forms.ListView
@@ -148,11 +169,19 @@ function LayoutOnlyFonts {
     $controls.SortSizeBtn.Font = $font
     $controls.SortCreatedBtn.Font = $font
     $controls.StatusLabel.Font = $font
+    $controls.SortingStatusLabel.Font = $font
+    # ProgressBar and Spacer don't need font setting
 }
 
 function Set-AllFonts($fontSize) {
     $font = New-Object System.Drawing.Font($global:fontFamily, $fontSize)
-    foreach ($ctrl in $controls.Values) { $ctrl.Font = $font }
+    foreach ($ctrl in $controls.Values) { 
+        if ($ctrl -is [System.Windows.Forms.ToolStripProgressBar] -or ($ctrl -is [System.Windows.Forms.ToolStripStatusLabel] -and $ctrl.Spring)) {
+            # ProgressBar and Spring spacer don't have Font property, skip them
+            continue
+        }
+        $ctrl.Font = $font 
+    }
     $form.Font = $font
 }
 
@@ -295,6 +324,26 @@ function Update-ListViewTextColors {
     if ($global:maxColumnWidths.Date -gt 0) {
         $controls.ListView.Columns[2].Width = $global:maxColumnWidths.Date
     }
+}
+
+function Show-SortProgress {
+    param(
+        [string]$SortType
+    )
+    
+    $controls.ProgressBar.Visible = $true
+    $controls.ProgressBar.Value = 0
+    $controls.ProgressBar.Maximum = 100
+    
+    # Simulate sorting progress with 10 steps
+    for ($i = 0; $i -le 100; $i += 10) {
+        $controls.ProgressBar.Value = $i
+        [System.Windows.Forms.Application]::DoEvents()
+        Start-Sleep -Milliseconds 20
+    }
+    
+    $controls.ProgressBar.Visible = $false
+    Update-InfoLabels
 }
 
 function Get-DateFromFileName($fileName, $extension) {
@@ -535,18 +584,21 @@ function BindHandlers {
     $controls.SortNameBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortNameBtn
         Update-SortButtonStates
+        Show-SortProgress "Name"
         $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
         Update-ListView 
     })
     $controls.SortSizeBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortSizeBtn
         Update-SortButtonStates
+        Show-SortProgress "Size"
         $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
         Update-ListView 
     })
     $controls.SortCreatedBtn.Add_Click({ 
         $global:activeSortButton = $controls.SortCreatedBtn
         Update-SortButtonStates
+        Show-SortProgress "Created Date"
         $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
         Update-ListView 
     })
