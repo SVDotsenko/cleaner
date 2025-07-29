@@ -3,12 +3,13 @@ Add-Type -AssemblyName Microsoft.VisualBasic
 
 $global:fontSize = 14
 $global:fontFamily = "Segoe UI"
+$global:showFullName = $true
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
-$form.Width = 1200
+$form.Width = 1400
 $form.Height = 800
-$form.MinimumSize = New-Object Drawing.Size(600,400)
+$form.MinimumSize = New-Object Drawing.Size(800,400)
 $form.StartPosition = [Windows.Forms.FormStartPosition]::CenterScreen
 
 $controls = @{}
@@ -21,46 +22,69 @@ $toolTip.ReshowDelay = 500
 function CreateControls {
     $gap = [int]($global:fontSize * 0.8)
     $btnH = [int]($global:fontSize * 2.2)
+    $btnW = 160 + $global:fontSize*2
+    $leftPanelWidth = $btnW + $gap * 2
     $y = $gap
     $x = $gap
-    $controls.SelectFolder = New-Object Windows.Forms.Button
-    $controls.SelectFolder.Text = "Folder"
-    $form.Controls.Add($controls.SelectFolder)
-    $controls.SelectFolder.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
-    $x += $controls.SelectFolder.Width + $gap
+
+    # Кнопка переключения названий - в самый верх
+    $controls.ToggleNameBtn = New-Object Windows.Forms.Button
+    $controls.ToggleNameBtn.Text = "Short name"
+    $form.Controls.Add($controls.ToggleNameBtn)
+    $controls.ToggleNameBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    # Удалить и рядом чекбокс на этой же строке
     $controls.DeleteBtn = New-Object Windows.Forms.Button
     $controls.DeleteBtn.Text = "Delete"
     $controls.DeleteBtn.Enabled = $false
     $form.Controls.Add($controls.DeleteBtn)
-    $controls.DeleteBtn.SetBounds($x, $y, 120 + $global:fontSize*2, $btnH)
-    $x += $controls.DeleteBtn.Width + $gap
+    $controls.DeleteBtn.SetBounds($x, $y, 80 + $global:fontSize, $btnH)
+
     $controls.DeleteToTrashCheckBox = New-Object Windows.Forms.CheckBox
     $controls.DeleteToTrashCheckBox.Checked = $true
     $controls.DeleteToTrashCheckBox.AutoSize = $true
     $form.Controls.Add($controls.DeleteToTrashCheckBox)
-    $controls.DeleteToTrashCheckBox.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
-    $x += $controls.DeleteToTrashCheckBox.Width + $gap
-    $controls.SortNameBtn = New-Object Windows.Forms.Button
-    $controls.SortNameBtn.Text = "Name"
-    $form.Controls.Add($controls.SortNameBtn)
-    $controls.SortNameBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortNameBtn.Width + $gap
-    $controls.SortSizeBtn = New-Object Windows.Forms.Button
-    $controls.SortSizeBtn.Text = "Size"
-    $form.Controls.Add($controls.SortSizeBtn)
-    $controls.SortSizeBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortSizeBtn.Width + $gap
-    $controls.SortCreatedBtn = New-Object Windows.Forms.Button
-    $controls.SortCreatedBtn.Text = "Created"
-    $form.Controls.Add($controls.SortCreatedBtn)
-    $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortCreatedBtn.Width + $gap
-    $y2 = $y + $btnH + $gap
-    
+    $controls.DeleteToTrashCheckBox.SetBounds($x + 80 + $global:fontSize + $gap, $y, 60, $btnH)
+    $y += $btnH + $gap
+
+    # Имя
+    $controls.SortNameRadio = New-Object Windows.Forms.RadioButton
+    $controls.SortNameRadio.Text = "Name"
+    $controls.SortNameRadio.AutoSize = $false
+    $form.Controls.Add($controls.SortNameRadio)
+    $controls.SortNameRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    # Размер
+    $controls.SortSizeRadio = New-Object Windows.Forms.RadioButton
+    $controls.SortSizeRadio.Text = "Size"
+    $controls.SortSizeRadio.AutoSize = $false
+    $form.Controls.Add($controls.SortSizeRadio)
+    $controls.SortSizeRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    # Создано
+    $controls.SortCreatedRadio = New-Object Windows.Forms.RadioButton
+    $controls.SortCreatedRadio.Text = "Created"
+    $controls.SortCreatedRadio.AutoSize = $false
+    $controls.SortCreatedRadio.Checked = $true
+    $form.Controls.Add($controls.SortCreatedRadio)
+    $controls.SortCreatedRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    # Выбор папки
+    $controls.SelectFolder = New-Object Windows.Forms.Button
+    $controls.SelectFolder.Text = "Folder"
+    $form.Controls.Add($controls.SelectFolder)
+    $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
+
     # Create StatusStrip instead of labels
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
     $controls.StatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
     $controls.StatusLabel.Text = "Total files: 0 | Total size: 0 MB"
+    $controls.StatusLabel.Spring = $true
+    $controls.StatusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleRight
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
     $form.Controls.Add($controls.StatusStrip)
     
@@ -73,13 +97,14 @@ function CreateControls {
     $controls.ListView.Sorting = 'None'
     $controls.ListView.Anchor = "Top,Bottom,Left,Right"
     $form.Controls.Add($controls.ListView)
-    $controls.ListView.Left = $gap
-    $controls.ListView.Top = $y2 + $btnH + $gap
-    $controls.ListView.Width = $form.ClientSize.Width - $gap*2
-    $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
+    $controls.ListView.Left = $leftPanelWidth
+    $controls.ListView.Top = 0
+    $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
+    $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
     $controls.ListView.Columns.Add("File Name", -1) | Out-Null
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
+
     $selectFolderTooltip = @"
 Allows you to select another folder to display and work with its files.
 "@
@@ -101,50 +126,48 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SelectFolder, $selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn, $deleteTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteToTrashCheckBox, $deleteToTrashTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortNameBtn, $sortNameTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortSizeBtn, $sortSizeTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortCreatedBtn, $sortCreatedTooltip.Trim())
-    $controls.ShowFullNameCheckBox = New-Object Windows.Forms.CheckBox
-    $controls.ShowFullNameCheckBox.Text = "Show full name"
-    $controls.ShowFullNameCheckBox.Checked = $true
-    $controls.ShowFullNameCheckBox.AutoSize = $true
-    $form.Controls.Add($controls.ShowFullNameCheckBox)
-    $controls.ShowFullNameCheckBox.SetBounds($x, $y, 140 + $global:fontSize*2, $btnH)
-    $x += $controls.ShowFullNameCheckBox.Width + $gap
+    $toolTip.SetToolTip($controls.SortNameRadio, $sortNameTooltip.Trim())
+    $toolTip.SetToolTip($controls.SortSizeRadio, $sortSizeTooltip.Trim())
+    $toolTip.SetToolTip($controls.SortCreatedRadio, $sortCreatedTooltip.Trim())
 }
 
 function LayoutOnlyFonts {
     $gap = [int]($global:fontSize * 0.8)
     $btnH = [int]($global:fontSize * 2.2)
+    $btnW = 160 + $global:fontSize*2
+    $leftPanelWidth = $btnW + $gap * 2
     $y = $gap
     $x = $gap
-    $controls.SelectFolder.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
-    $x += $controls.SelectFolder.Width + $gap
-    $controls.DeleteBtn.SetBounds($x, $y, 120 + $global:fontSize*2, $btnH)
-    $x += $controls.DeleteBtn.Width + $gap
-    $controls.DeleteToTrashCheckBox.SetBounds($x, $y, 100 + $global:fontSize*2, $btnH)
-    $x += $controls.DeleteToTrashCheckBox.Width + $gap
-    $controls.SortNameBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortNameBtn.Width + $gap
-    $controls.SortSizeBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortSizeBtn.Width + $gap
-    $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
-    $x += $controls.SortCreatedBtn.Width + $gap
-    $y2 = $y + $btnH + $gap
-    $controls.StatusLabel.Font = $font
-    $gap = [int]($global:fontSize * 0.8)
-    $controls.ListView.Left = $gap
-    $controls.ListView.Top = $y2 + $btnH + $gap
-    $controls.ListView.Width = $form.ClientSize.Width - $gap*2
-    $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
-    $form.PerformLayout()
-    $controls.ListView.Font = $font
-    $controls.SelectFolder.Font = $font
+
+    $controls.ToggleNameBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    $controls.DeleteBtn.SetBounds($x, $y, 80 + $global:fontSize, $btnH)
+    $controls.DeleteToTrashCheckBox.SetBounds($x + 80 + $global:fontSize + $gap, $y, 60, $btnH)
+    $y += $btnH + $gap
+
+    $controls.SortNameRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    $controls.SortSizeRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    $controls.SortCreatedRadio.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
+
+    $controls.ListView.Left = $leftPanelWidth
+    $controls.ListView.Top = 0
+    $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
+    $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
+
+    $controls.ToggleNameBtn.Font = $font
     $controls.DeleteBtn.Font = $font
     $controls.DeleteToTrashCheckBox.Font = $font
-    $controls.SortNameBtn.Font = $font
-    $controls.SortSizeBtn.Font = $font
-    $controls.SortCreatedBtn.Font = $font
+    $controls.SortNameRadio.Font = $font
+    $controls.SortSizeRadio.Font = $font
+    $controls.SortCreatedRadio.Font = $font
     $controls.StatusLabel.Font = $font
 }
 
@@ -179,11 +202,11 @@ function Update-InfoLabels {
 function Update-ListView {
     $controls.ListView.Items.Clear()
     foreach ($file in $global:filteredTable) {
-        # Show names and dates based on current checkbox state
-        $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
+        # Show names and dates based on current state
+        $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
-        $displayDate = Format-ExtractedDate $file.DisplayDate $controls.ShowFullNameCheckBox.Checked
+        $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
         $controls.ListView.Items.Add($item) | Out-Null
     }
@@ -209,10 +232,10 @@ function Update-ListViewPreserveScroll {
     
     $controls.ListView.Items.Clear()
     foreach ($file in $global:filteredTable) {
-        $displayName = if ($controls.ShowFullNameCheckBox.Checked) { $file.OrigName } else { $file.Name }
+        $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
-        $displayDate = Format-ExtractedDate $file.DisplayDate $controls.ShowFullNameCheckBox.Checked
+        $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
         $controls.ListView.Items.Add($item) | Out-Null
     }
@@ -238,14 +261,14 @@ function Update-ListViewPreserveScroll {
 }
 
 function Update-ListViewTextColors {
-    # Update text display based on ShowFullName checkbox state
+    # Update text display based on showFullName state
     foreach ($item in $controls.ListView.Items) {
         $fileIndex = $item.Index
         if ($fileIndex -lt $global:filteredTable.Count) {
             $file = $global:filteredTable[$fileIndex]
             
             # Update name column text
-            if ($controls.ShowFullNameCheckBox.Checked) {
+            if ($global:showFullName) {
                 # Show full name
                 $item.Text = $file.OrigName
                 $item.ForeColor = [System.Drawing.Color]::Black
@@ -256,7 +279,7 @@ function Update-ListViewTextColors {
             }
             
             # Update date column text
-            if ($controls.ShowFullNameCheckBox.Checked) {
+            if ($global:showFullName) {
                 # Show full date with time
                 $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $true
                 $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
@@ -464,14 +487,12 @@ function Get-FilesFromFolder {
                 OrigName = $file.Name
             }
         }
-        $global:activeSortButton = $controls.SortCreatedBtn
+        $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
-        Update-SortButtonStates
         Invoke-Search
     } else {
         $global:fileTable = @()
-        $global:activeSortButton = $controls.SortCreatedBtn
-        Update-SortButtonStates
+        $controls.SortCreatedRadio.Checked = $true
         Invoke-Search
     }
 }
@@ -504,24 +525,7 @@ function Move-FileToRecycleBin($filePath) {
 }
 
 function Update-SortButtonStates {
-    # Сначала сбрасываем состояние всех кнопок
-    $controls.SortNameBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-    $controls.SortNameBtn.BackColor = [System.Drawing.SystemColors]::Control
-    $controls.SortNameBtn.Enabled = $true
-    $controls.SortSizeBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-    $controls.SortSizeBtn.BackColor = [System.Drawing.SystemColors]::Control
-    $controls.SortSizeBtn.Enabled = $true
-    $controls.SortCreatedBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
-    $controls.SortCreatedBtn.BackColor = [System.Drawing.SystemColors]::Control
-    $controls.SortCreatedBtn.Enabled = $true
-
-    # Затем выделяем активную кнопку и отключаем её
-    if ($null -ne $global:activeSortButton) {
-        $global:activeSortButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-        $global:activeSortButton.BackColor = [System.Drawing.Color]::LightBlue
-        $global:activeSortButton.ForeColor = [System.Drawing.Color]::DarkBlue
-        $global:activeSortButton.Enabled = $false
-    }
+    # Функция больше не нужна, так как RadioButton автоматически обрабатывают состояния
 }
 
 function BindHandlers {
@@ -537,23 +541,23 @@ function BindHandlers {
         $controls.DeleteBtn.Enabled = $controls.ListView.SelectedItems.Count -gt 0
         Update-InfoLabels
     })
-    $controls.SortNameBtn.Add_Click({ 
-        $global:activeSortButton = $controls.SortNameBtn
-        Update-SortButtonStates
-        $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
-        Update-ListView 
+    $controls.SortNameRadio.Add_CheckedChanged({
+        if ($controls.SortNameRadio.Checked) {
+            $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
+            Update-ListView
+        }
     })
-    $controls.SortSizeBtn.Add_Click({ 
-        $global:activeSortButton = $controls.SortSizeBtn
-        Update-SortButtonStates
-        $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
-        Update-ListView 
+    $controls.SortSizeRadio.Add_CheckedChanged({
+        if ($controls.SortSizeRadio.Checked) {
+            $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
+            Update-ListView
+        }
     })
-    $controls.SortCreatedBtn.Add_Click({ 
-        $global:activeSortButton = $controls.SortCreatedBtn
-        Update-SortButtonStates
-        $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
-        Update-ListView 
+    $controls.SortCreatedRadio.Add_CheckedChanged({
+        if ($controls.SortCreatedRadio.Checked) {
+            $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
+            Update-ListView
+        }
     })
     $controls.DeleteBtn.Add_Click({
         $toDeleteIndexes = @()
@@ -596,6 +600,15 @@ function BindHandlers {
             }
         }
     })
+    $controls.ToggleNameBtn.Add_Click({
+        $global:showFullName = -not $global:showFullName
+        if ($global:showFullName) {
+            $controls.ToggleNameBtn.Text = "Short name"
+        } else {
+            $controls.ToggleNameBtn.Text = "Full name"
+        }
+        Update-ListViewTextColors
+    })
     $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewTextColors })
     $controls.DeleteToTrashCheckBox.Add_CheckedChanged({
         if ($controls.DeleteToTrashCheckBox.Checked) {
@@ -609,9 +622,11 @@ function BindHandlers {
 $form.Add_Resize({
     if ($null -ne $controls.ListView) {
         $gap = [int]($global:fontSize * 0.8)
-        $controls.ListView.Left = $gap
-        $controls.ListView.Width = $form.ClientSize.Width - $gap*2
-        $controls.ListView.Height = $form.ClientSize.Height - $controls.ListView.Top - $gap
+        $btnW = 160 + $global:fontSize*2
+        $leftPanelWidth = $btnW + $gap * 2
+        $controls.ListView.Left = $leftPanelWidth
+        $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
+        $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
         $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     }
 })
