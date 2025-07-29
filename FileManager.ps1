@@ -550,20 +550,26 @@ function BindHandlers {
     })
     $controls.SortNameRadio.Add_CheckedChanged({
         if ($controls.SortNameRadio.Checked) {
+            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
             $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
             Update-ListView
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
         }
     })
     $controls.SortSizeRadio.Add_CheckedChanged({
         if ($controls.SortSizeRadio.Checked) {
+            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
             $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
             Update-ListView
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
         }
     })
     $controls.SortCreatedRadio.Add_CheckedChanged({
         if ($controls.SortCreatedRadio.Checked) {
+            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
             $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
             Update-ListView
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
         }
     })
     $controls.DeleteBtn.Add_Click({
