@@ -56,7 +56,6 @@ function CreateControls {
     $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
-    $x2 = $gap
     
     # Create StatusStrip instead of labels
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
@@ -132,7 +131,6 @@ function LayoutOnlyFonts {
     $controls.SortCreatedBtn.SetBounds($x, $y, 110 + $global:fontSize*2, $btnH)
     $x += $controls.SortCreatedBtn.Width + $gap
     $y2 = $y + $btnH + $gap
-    $x2 = $gap
     $controls.StatusLabel.Font = $font
     $gap = [int]($global:fontSize * 0.8)
     $controls.ListView.Left = $gap
@@ -592,6 +590,13 @@ function BindHandlers {
         }
     })
     $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewTextColors })
+    $controls.DeleteToTrashCheckBox.Add_CheckedChanged({
+        if ($controls.DeleteToTrashCheckBox.Checked) {
+            $controls.DeleteBtn.Text = "Bin"
+        } else {
+            $controls.DeleteBtn.Text = "Delete"
+        }
+    })
 }
 
 $form.Add_Resize({
@@ -610,6 +615,12 @@ $form.Add_Shown({
     CreateControls
     Set-AllFonts $global:fontSize
     BindHandlers
+    # Установим начальный текст кнопки удаления в соответствии с чекбоксом
+    if ($controls.DeleteToTrashCheckBox.Checked) {
+        $controls.DeleteBtn.Text = "Bin"
+    } else {
+        $controls.DeleteBtn.Text = "Delete"
+    }
     Get-FilesFromFolder
     $form.Activate()
 })
