@@ -504,16 +504,23 @@ function Move-FileToRecycleBin($filePath) {
 }
 
 function Update-SortButtonStates {
+    # Сначала сбрасываем состояние всех кнопок
     $controls.SortNameBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $controls.SortNameBtn.BackColor = [System.Drawing.SystemColors]::Control
+    $controls.SortNameBtn.Enabled = $true
     $controls.SortSizeBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $controls.SortSizeBtn.BackColor = [System.Drawing.SystemColors]::Control
+    $controls.SortSizeBtn.Enabled = $true
     $controls.SortCreatedBtn.FlatStyle = [System.Windows.Forms.FlatStyle]::Standard
     $controls.SortCreatedBtn.BackColor = [System.Drawing.SystemColors]::Control
+    $controls.SortCreatedBtn.Enabled = $true
+
+    # Затем выделяем активную кнопку и отключаем её
     if ($null -ne $global:activeSortButton) {
         $global:activeSortButton.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
         $global:activeSortButton.BackColor = [System.Drawing.Color]::LightBlue
         $global:activeSortButton.ForeColor = [System.Drawing.Color]::DarkBlue
+        $global:activeSortButton.Enabled = $false
     }
 }
 
