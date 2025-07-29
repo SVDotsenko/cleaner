@@ -609,7 +609,6 @@ function BindHandlers {
         }
         Update-ListViewTextColors
     })
-    $controls.ShowFullNameCheckBox.Add_CheckedChanged({ Update-ListViewTextColors })
     $controls.DeleteToTrashCheckBox.Add_CheckedChanged({
         if ($controls.DeleteToTrashCheckBox.Checked) {
             $controls.DeleteBtn.Text = "Bin"
