@@ -559,7 +559,7 @@ function Update-CommentsDisplay {
                     $comments = Read-FileComments $file.Path
                     $global:originalCommentsText = $comments
                     $controls.CommentsBox.Text = $comments
-                    $controls.UpdateCommentsBtn.Enabled = $true
+                    $controls.UpdateCommentsBtn.Enabled = $false  # Always disabled by default
                 } else {
                     $global:currentSelectedFile = $null
                     $global:originalCommentsText = ""
@@ -830,22 +830,35 @@ function BindHandlers {
         $controls.UpdateCommentsBtn.Add_Click({
             if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
                 $newComments = $controls.CommentsBox.Text
-                $success = Write-FileComments $global:currentSelectedFile.Path $newComments
                 
-                if ($success) {
-                    $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
-                    Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
-                    $global:originalCommentsText = $newComments
+                # Check if the new comments are not empty/whitespace only
+                if (-not [string]::IsNullOrWhiteSpace($newComments)) {
+                    $success = Write-FileComments $global:currentSelectedFile.Path $newComments
+                    
+                    if ($success) {
+                        $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                        Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
+                        $global:originalCommentsText = $newComments
+                    } else {
+                        $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                        Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
+                    }
                 } else {
-                    $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
-                    Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
+                    Show-TrayNotification -Title "Error" -Message "Cannot save empty comments" -Type "Error"
                 }
             }
         })
 
         $controls.CommentsBox.Add_TextChanged({
             if ($global:currentSelectedFile) {
-                $controls.UpdateCommentsBtn.Enabled = $controls.CommentsBox.Text -ne $global:originalCommentsText
+                $currentText = $controls.CommentsBox.Text
+                $originalText = $global:originalCommentsText
+                
+                # Check if text is different from original AND not empty/whitespace only
+                $isDifferent = $currentText -ne $originalText
+                $isNotEmpty = -not [string]::IsNullOrWhiteSpace($currentText)
+                
+                $controls.UpdateCommentsBtn.Enabled = $isDifferent -and $isNotEmpty
             }
         })
     }
