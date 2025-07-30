@@ -4,6 +4,7 @@ Add-Type -AssemblyName Microsoft.VisualBasic
 $global:fontSize = 14
 $global:fontFamily = "Segoe UI"
 $global:showFullName = $true
+$global:commentsEnabled = $false
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -18,6 +19,40 @@ $toolTip = New-Object System.Windows.Forms.ToolTip
 $toolTip.AutoPopDelay = 5000
 $toolTip.InitialDelay = 1000
 $toolTip.ReshowDelay = 500
+
+function Test-Requirements {
+    $requirementsMet = $true
+    $messages = @()
+    
+    # Check PowerShell version
+    $psVersion = $PSVersionTable.PSVersion
+    if ($psVersion.Major -lt 7) {
+        $requirementsMet = $false
+        $messages += "PowerShell version $($psVersion.ToString()) detected. For comments functionality, please update to PowerShell 7+"
+    }
+    
+    # Check TagLib installation
+    $tagLibModule = Get-Module -Name TagLibCli -ListAvailable
+    if (-not $tagLibModule) {
+        $requirementsMet = $false
+        $messages += "TagLibCli module not found. Please install it with: Install-Module -Name TagLibCli -Force"
+    } else {
+        # Check if DLL exists
+        $moduleDir = Split-Path $tagLibModule.Path -Parent
+        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+        if (-not (Test-Path $dllPath)) {
+            $requirementsMet = $false
+            $messages += "TagLibSharp.dll not found in module directory. Comments functionality will be disabled"
+        }
+    }
+    
+    # Show messages in tray
+    foreach ($message in $messages) {
+        Show-TrayNotification -Title "Requirements Check" -Message $message -Type "Info"
+    }
+    
+    return $requirementsMet
+}
 
 function CreateControls {
     $gap = [int]($global:fontSize * 0.8)
@@ -80,6 +115,27 @@ function CreateControls {
     $controls.SelectFolder.Text = "Folder"
     $form.Controls.Add($controls.SelectFolder)
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    # Comments RichTextBox (only if requirements are met)
+    if ($global:commentsEnabled) {
+        $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
+        $controls.CommentsBox.Multiline = $true
+        $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
+        $controls.CommentsBox.ReadOnly = $false
+        $controls.CommentsBox.Text = ""
+        $form.Controls.Add($controls.CommentsBox)
+        $controls.CommentsBox.SetBounds($x, $y, $btnW, 60)
+        $y += 60 + $gap
+
+        # Update Comments Button (only if requirements are met)
+        $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
+        $controls.UpdateCommentsBtn.Text = "Update"
+        $controls.UpdateCommentsBtn.Enabled = $false
+        $form.Controls.Add($controls.UpdateCommentsBtn)
+        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+        $y += $btnH + $gap
+    }
 
     # Create StatusStrip instead of labels
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
@@ -159,6 +215,13 @@ function LayoutOnlyFonts {
     $y += $btnH + $gap
 
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+
+    if ($global:commentsEnabled) {
+        $controls.CommentsBox.SetBounds($x, $y, $btnW, 60)
+        $y += 60 + $gap
+        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+    }
 
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
@@ -171,6 +234,11 @@ function LayoutOnlyFonts {
     $controls.SortNameRadio.Font = $font
     $controls.SortSizeRadio.Font = $font
     $controls.SortCreatedRadio.Font = $font
+    $controls.SelectFolder.Font = $font
+    if ($global:commentsEnabled) {
+        $controls.CommentsBox.Font = $font
+        $controls.UpdateCommentsBtn.Font = $font
+    }
     $controls.StatusLabel.Font = $font
 }
 
@@ -404,11 +472,127 @@ function Get-DisplayNameFromFileName($fileName) {
     }
 }
 
+function Read-FileComments($filePath) {
+    try {
+        # Загружаем TagLib DLL из папки модуля (точно как в taglib_test.ps1)
+        
+        $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
+        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+
+        if (Test-Path $dllPath) {
+            Add-Type -Path $dllPath
+            
+            # Открываем файл (точно как в taglib_test.ps1)
+            $tagFile = [TagLib.File]::Create($filePath)
+            
+            if ($tagFile) {
+                $tags = $tagFile.Tag
+                
+                if ($tags) {
+                    $comments = $tags.Comment
+                    $tagFile.Dispose()
+                    return $comments
+                }
+                
+                $tagFile.Dispose()
+            }
+        }
+    } catch {
+        Write-Host "Error reading comments: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    return ""
+}
+
+function Write-FileComments($filePath, $comments) {
+    try {
+        # Загружаем TagLib DLL из папки модуля (точно как в taglib_test.ps1)
+        $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
+        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+        
+        if (Test-Path $dllPath) {
+            Add-Type -Path $dllPath
+            
+            # Открываем файл (точно как в taglib_test.ps1)
+            $tagFile = [TagLib.File]::Create($filePath)
+            
+            if ($tagFile) {
+                $tags = $tagFile.Tag
+                
+                if ($tags) {
+                    # Записываем новый комментарий (точно как в taglib_test.ps1)
+                    $tags.Comment = $comments
+                    $tagFile.Save()
+                    $tagFile.Dispose()
+                    return $true
+                }
+                
+                $tagFile.Dispose()
+            }
+        }
+    } catch {
+        Write-Host "Error writing comments: $($_.Exception.Message)" -ForegroundColor Red
+    }
+    return $false
+}
+
+function Update-CommentsDisplay {
+    # Only process if comments are enabled
+    if (-not $global:commentsEnabled) {
+        return
+    }
+    
+    $selectedCount = $controls.ListView.SelectedItems.Count
+    
+    if ($selectedCount -eq 1) {
+        $index = $controls.ListView.SelectedItems[0].Index
+        
+        if ($index -lt $global:filteredTable.Count) {
+            $file = $global:filteredTable[$index]
+            
+            # Check if file and path are valid
+            if ($file -and $file.Path -and (Test-Path $file.Path)) {
+                # Check if it's an audio file
+                $extension = [System.IO.Path]::GetExtension($file.Path).ToLower()
+                
+                if ($extension -match "\.(m4a|mp3|ogg)$") {
+                    $global:currentSelectedFile = $file
+                    $comments = Read-FileComments $file.Path
+                    $global:originalCommentsText = $comments
+                    $controls.CommentsBox.Text = $comments
+                    $controls.UpdateCommentsBtn.Enabled = $true
+                } else {
+                    $global:currentSelectedFile = $null
+                    $global:originalCommentsText = ""
+                    $controls.CommentsBox.Text = ""
+                    $controls.UpdateCommentsBtn.Enabled = $false
+                }
+            } else {
+                $global:currentSelectedFile = $null
+                $global:originalCommentsText = ""
+                $controls.CommentsBox.Text = ""
+                $controls.UpdateCommentsBtn.Enabled = $false
+            }
+        } else {
+            $global:currentSelectedFile = $null
+            $global:originalCommentsText = ""
+            $controls.CommentsBox.Text = ""
+            $controls.UpdateCommentsBtn.Enabled = $false
+        }
+    } else {
+        $global:currentSelectedFile = $null
+        $global:originalCommentsText = ""
+        $controls.CommentsBox.Text = ""
+        $controls.UpdateCommentsBtn.Enabled = $false
+    }
+}
+
 $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
 $global:maxColumnWidths = @{ Name = 0; Date = 0 }
+$global:currentSelectedFile = $null
+$global:originalCommentsText = ""
 
 function Show-TrayNotification {
     param(
@@ -478,11 +662,14 @@ function Get-FilesFromFolder {
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
         $files = Get-ChildItem -Path $global:folderPath -File | Where-Object { $_.Extension -match "\.(m4a|mp3|ogg)$" }
+        # Write-Host "Found $($files.Count) audio files" -ForegroundColor Cyan
+        
         foreach ($file in $files) {
             $extractedDate = Get-DateFromFileName $file.Name $file.Extension
             $displayDate = if ($null -eq $extractedDate) { $file.CreationTime } else { $extractedDate }
             $displayName = Get-DisplayNameFromFileName $file.Name
-            $global:fileTable += [PSCustomObject]@{
+            
+            $fileObj = [PSCustomObject]@{
                 Name   = $displayName
                 SizeMB = [math]::Round($file.Length / 1MB, 2)
                 Path   = $file.FullName
@@ -491,7 +678,13 @@ function Get-FilesFromFolder {
                 DisplayDate = $displayDate
                 OrigName = $file.Name
             }
+            
+            # Write-Host "Created file object: Name=$($fileObj.Name), Path=$($fileObj.Path)" -ForegroundColor Green
+            $global:fileTable += $fileObj
         }
+        
+        # Write-Host "Total file objects created: $($global:fileTable.Count)" -ForegroundColor Cyan
+        
         $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Invoke-Search
@@ -529,10 +722,6 @@ function Move-FileToRecycleBin($filePath) {
     }
 }
 
-function Update-SortButtonStates {
-    # Функция больше не нужна, так как RadioButton автоматически обрабатывают состояния
-}
-
 function BindHandlers {
     $controls.SelectFolder.Add_Click({
         $dialog = New-Object Windows.Forms.FolderBrowserDialog
@@ -547,6 +736,7 @@ function BindHandlers {
         $controls.DeleteBtn.Enabled = $hasSelection
         $controls.BinBtn.Enabled = $hasSelection
         Update-InfoLabels
+        Update-CommentsDisplay
     })
     $controls.SortNameRadio.Add_CheckedChanged({
         if ($controls.SortNameRadio.Checked) {
@@ -634,6 +824,31 @@ function BindHandlers {
         }
         Update-ListViewTextColors
     })
+
+    # Only add comment handlers if comments are enabled
+    if ($global:commentsEnabled) {
+        $controls.UpdateCommentsBtn.Add_Click({
+            if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
+                $newComments = $controls.CommentsBox.Text
+                $success = Write-FileComments $global:currentSelectedFile.Path $newComments
+                
+                if ($success) {
+                    $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                    Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
+                    $global:originalCommentsText = $newComments
+                } else {
+                    $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                    Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
+                }
+            }
+        })
+
+        $controls.CommentsBox.Add_TextChanged({
+            if ($global:currentSelectedFile) {
+                $controls.UpdateCommentsBtn.Enabled = $controls.CommentsBox.Text -ne $global:originalCommentsText
+            }
+        })
+    }
 }
 
 $form.Add_Resize({
@@ -651,6 +866,9 @@ $form.Add_Resize({
 $form.Topmost = $false
 
 $form.Add_Shown({
+    # Check requirements before creating controls
+    $global:commentsEnabled = Test-Requirements
+    
     CreateControls
     Set-AllFonts $global:fontSize
     BindHandlers
