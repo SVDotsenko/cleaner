@@ -24,13 +24,6 @@ function Test-Requirements {
     $requirementsMet = $true
     $messages = @()
     
-    # Check PowerShell version
-    $psVersion = $PSVersionTable.PSVersion
-    if ($psVersion.Major -lt 7) {
-        $requirementsMet = $false
-        $messages += "PowerShell version $($psVersion.ToString()) detected. For comments functionality, please update to PowerShell 7+"
-    }
-    
     # Check TagLib installation
     $tagLibModule = Get-Module -Name TagLibCli -ListAvailable
     if (-not $tagLibModule) {
