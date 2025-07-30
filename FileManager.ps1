@@ -809,7 +809,8 @@ function BindHandlers {
             $index = $controls.ListView.SelectedItems[0].Index
             $file = $global:filteredTable[$index]
             try {
-                [System.Diagnostics.Process]::Start($file.Path) | Out-Null
+                # Use Start-Process for PowerShell 7 compatibility
+                Start-Process -FilePath $file.Path -ErrorAction Stop
             } catch {
                 Show-TrayNotification -Title "Error" -Message "Cannot open file: $($file.Path)" -Type "Error"
             }
