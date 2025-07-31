@@ -650,49 +650,67 @@ function Write-FileComments($filePath, $comments) {
 function Update-CommentsDisplay {
     # Only process if comments are enabled
     if (-not $global:commentsEnabled) {
+        Write-Host "Update-CommentsDisplay: Comments not enabled" -ForegroundColor Red
         return
     }
     
     $selectedCount = $controls.ListView.SelectedItems.Count
+    Write-Host "Update-CommentsDisplay: Selected count = $selectedCount" -ForegroundColor Yellow
     
     if ($selectedCount -eq 1) {
         $index = $controls.ListView.SelectedItems[0].Index
+        Write-Host "Update-CommentsDisplay: Selected index = $index" -ForegroundColor Yellow
         
         if ($index -lt $global:filteredTable.Count) {
             $file = $global:filteredTable[$index]
+            Write-Host "Update-CommentsDisplay: File = $($file.Name), CommentsLoaded = $($file.CommentsLoaded)" -ForegroundColor Yellow
             
             # Check if file and path are valid
             if ($file -and $file.Path -and (Test-Path $file.Path)) {
                 # Check if it's an audio file
                 $extension = [System.IO.Path]::GetExtension($file.Path).ToLower()
+                Write-Host "Update-CommentsDisplay: Extension = $extension" -ForegroundColor Yellow
                 
                 if ($extension -match "\.(m4a|mp3|ogg)$") {
                     $global:currentSelectedFile = $file
                     
-                    # Use cached comments if available, otherwise show empty
-                    $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+                    # Load comments if not already loaded
+                    if (-not $file.CommentsLoaded) {
+                        Write-Host "Update-CommentsDisplay: Loading comments for $($file.Name)" -ForegroundColor Cyan
+                        $file.Comments = Read-FileComments $file.Path
+                        $file.CommentsLoaded = $true
+                        Write-Host "Update-CommentsDisplay: Loaded comments = '$($file.Comments)'" -ForegroundColor Green
+                    } else {
+                        Write-Host "Update-CommentsDisplay: Using cached comments = '$($file.Comments)'" -ForegroundColor Green
+                    }
+                    
+                    $comments = $file.Comments
                     $global:originalCommentsText = $comments
                     $controls.CommentsBox.Text = $comments
                     $controls.SaveCommentsBtn.Enabled = $false  # Always disabled by default
                 } else {
+                    Write-Host "Update-CommentsDisplay: Not an audio file" -ForegroundColor Red
                     $global:currentSelectedFile = $null
                     $global:originalCommentsText = ""
                     $controls.CommentsBox.Text = ""
                     $controls.SaveCommentsBtn.Enabled = $false
                 }
             } else {
+                Write-Host "Update-CommentsDisplay: File or path invalid" -ForegroundColor Red
                 $global:currentSelectedFile = $null
                 $global:originalCommentsText = ""
                 $controls.CommentsBox.Text = ""
                 $controls.SaveCommentsBtn.Enabled = $false
             }
         } else {
+            Write-Host "Update-CommentsDisplay: Index out of range" -ForegroundColor Red
             $global:currentSelectedFile = $null
             $global:originalCommentsText = ""
             $controls.CommentsBox.Text = ""
             $controls.SaveCommentsBtn.Enabled = $false
         }
     } else {
+        Write-Host "Update-CommentsDisplay: Multiple or no selection, clearing" -ForegroundColor Yellow
         $global:currentSelectedFile = $null
         $global:originalCommentsText = ""
         $controls.CommentsBox.Text = ""
