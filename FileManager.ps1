@@ -938,14 +938,14 @@ function BindHandlers {
             $controls.ListView.Columns.Add("Comments", 500) | Out-Null
         }
         
-                 Update-ListView
-         
-         # Update Update button visibility based on display mode
-         if ($global:commentsEnabled) {
-             $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
-         }
-         
-         # Manual loading only - no automatic loading
+        Update-ListViewPreserveScroll
+        
+        # Update Update button visibility based on display mode
+        if ($global:commentsEnabled) {
+            $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
+        }
+        
+        # Manual loading only - no automatic loading
     })
 
     # Only add comment handlers if comments are enabled
