@@ -454,7 +454,7 @@ function Load-CommentsForVisibleItems {
     $endIndex = [math]::Min($global:filteredTable.Count - 1, $topItemIndex + $visibleCount - 1)
     
     # Add buffer only below for smooth scrolling (no buffer above)
-    $endIndex = [math]::Min($global:filteredTable.Count - 1, $endIndex + 10)
+    $endIndex = [math]::Min($global:filteredTable.Count - 1, $endIndex + 25)
     
     Write-Host "=== Loading Comments for Visible Items ===" -ForegroundColor Cyan
     Write-Host "Top item index: $topItemIndex, Visible count: $visibleCount" -ForegroundColor Yellow
