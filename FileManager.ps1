@@ -442,18 +442,23 @@ function Load-CommentsForVisibleItems {
         return
     }
     
-    # Get visible items (approximate range)
-    $topIndex = 0
+    # Get visible items using the same logic as Update-ListViewPreserveScroll
+    $topItemIndex = -1
     if ($null -ne $controls.ListView.TopItem) {
-        $topIndex = $controls.ListView.TopItem.Index
+        $topItemIndex = $controls.ListView.TopItem.Index
     }
     
-    # Load comments for visible items (approximately 50 items around current view)
-    $startIndex = [math]::Max(0, $topIndex - 10)
-    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topIndex + 40)
+    # Calculate visible range based on actual visible items
+    $visibleCount = $controls.ListView.VisibleCount
+    $startIndex = $topItemIndex
+    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topItemIndex + $visibleCount - 1)
+    
+    # Add buffer only below for smooth scrolling (no buffer above)
+    $endIndex = [math]::Min($global:filteredTable.Count - 1, $endIndex + 10)
     
     Write-Host "=== Loading Comments for Visible Items ===" -ForegroundColor Cyan
-    Write-Host "Top index: $topIndex, Range: $startIndex to $endIndex" -ForegroundColor Yellow
+    Write-Host "Top item index: $topItemIndex, Visible count: $visibleCount" -ForegroundColor Yellow
+    Write-Host "Range: $startIndex to $endIndex (with buffer)" -ForegroundColor Yellow
     Write-Host "Total files in filtered table: $($global:filteredTable.Count)" -ForegroundColor Yellow
     
     $loadedCount = 0
