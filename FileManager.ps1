@@ -110,25 +110,34 @@ function CreateControls {
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-    # Comments RichTextBox (only if requirements are met)
-    if ($global:commentsEnabled) {
-        $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
-        $controls.CommentsBox.Multiline = $true
-        $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
-        $controls.CommentsBox.ReadOnly = $false
-        $controls.CommentsBox.Text = ""
-        $form.Controls.Add($controls.CommentsBox)
-        $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
-        $y += 150 + $gap
-
-        # Update Comments Button (only if requirements are met)
-        $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
-        $controls.UpdateCommentsBtn.Text = "Update"
-        $controls.UpdateCommentsBtn.Enabled = $false
-        $form.Controls.Add($controls.UpdateCommentsBtn)
-        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-        $y += $btnH + $gap
-    }
+         # Comments RichTextBox (only if requirements are met)
+     if ($global:commentsEnabled) {
+         $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
+         $controls.CommentsBox.Multiline = $true
+         $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
+         $controls.CommentsBox.ReadOnly = $false
+         $controls.CommentsBox.Text = ""
+         $form.Controls.Add($controls.CommentsBox)
+         $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
+         $y += 150 + $gap
+ 
+         # Save Comments Button (only if requirements are met)
+         $controls.SaveCommentsBtn = New-Object Windows.Forms.Button
+         $controls.SaveCommentsBtn.Text = "Save"
+         $controls.SaveCommentsBtn.Enabled = $false
+         $form.Controls.Add($controls.SaveCommentsBtn)
+         $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+         $y += $btnH + $gap
+ 
+         # Update Comments Button (only if requirements are met and in short name mode)
+         $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
+         $controls.UpdateCommentsBtn.Text = "Update"
+         $controls.UpdateCommentsBtn.Enabled = $true
+         $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
+         $form.Controls.Add($controls.UpdateCommentsBtn)
+         $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+         $y += $btnH + $gap
+     }
 
     # Create StatusStrip instead of labels
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
@@ -218,6 +227,8 @@ function LayoutOnlyFonts {
     if ($global:commentsEnabled) {
         $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
         $y += 150 + $gap
+        $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+        $y += $btnH + $gap
         $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
     }
 
@@ -235,6 +246,7 @@ function LayoutOnlyFonts {
     $controls.SelectFolder.Font = $font
     if ($global:commentsEnabled) {
         $controls.CommentsBox.Font = $font
+        $controls.SaveCommentsBtn.Font = $font
         $controls.UpdateCommentsBtn.Font = $font
     }
     $controls.StatusLabel.Font = $font
@@ -286,6 +298,8 @@ function Update-ListView {
         if ($showComments) {
             # Use cached comments if available, otherwise show empty
             $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+            # Ensure comments is never null
+            if ($null -eq $comments) { $comments = "" }
             $item.SubItems.Add($comments)
         }
         
@@ -328,6 +342,8 @@ function Update-ListViewPreserveScroll {
         if ($showComments) {
             # Use cached comments if available, otherwise show empty
             $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+            # Ensure comments is never null
+            if ($null -eq $comments) { $comments = "" }
             $item.SubItems.Add($comments)
         }
         
@@ -394,6 +410,8 @@ function Update-ListViewTextColors {
             if ($showComments -and $item.SubItems.Count -gt 3) {
                 # Use cached comments if available, otherwise show empty
                 $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+                # Ensure comments is never null
+                if ($null -eq $comments) { $comments = "" }
                 $item.SubItems[3].Text = $comments
                 $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
             }
@@ -634,39 +652,34 @@ function Update-CommentsDisplay {
                 if ($extension -match "\.(m4a|mp3|ogg)$") {
                     $global:currentSelectedFile = $file
                     
-                    # Load comments if not already loaded
-                    if (-not $file.CommentsLoaded) {
-                        $file.Comments = Read-FileComments $file.Path
-                        $file.CommentsLoaded = $true
-                    }
-                    
-                    $comments = $file.Comments
+                    # Use cached comments if available, otherwise show empty
+                    $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
                     $global:originalCommentsText = $comments
                     $controls.CommentsBox.Text = $comments
-                    $controls.UpdateCommentsBtn.Enabled = $false  # Always disabled by default
+                    $controls.SaveCommentsBtn.Enabled = $false  # Always disabled by default
                 } else {
                     $global:currentSelectedFile = $null
                     $global:originalCommentsText = ""
                     $controls.CommentsBox.Text = ""
-                    $controls.UpdateCommentsBtn.Enabled = $false
+                    $controls.SaveCommentsBtn.Enabled = $false
                 }
             } else {
                 $global:currentSelectedFile = $null
                 $global:originalCommentsText = ""
                 $controls.CommentsBox.Text = ""
-                $controls.UpdateCommentsBtn.Enabled = $false
+                $controls.SaveCommentsBtn.Enabled = $false
             }
         } else {
             $global:currentSelectedFile = $null
             $global:originalCommentsText = ""
             $controls.CommentsBox.Text = ""
-            $controls.UpdateCommentsBtn.Enabled = $false
+            $controls.SaveCommentsBtn.Enabled = $false
         }
     } else {
         $global:currentSelectedFile = $null
         $global:originalCommentsText = ""
         $controls.CommentsBox.Text = ""
-        $controls.UpdateCommentsBtn.Enabled = $false
+        $controls.SaveCommentsBtn.Enabled = $false
     }
 }
 
@@ -775,10 +788,7 @@ function Get-FilesFromFolder {
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Invoke-Search
         
-        # Load comments for visible items if in short name mode
-        if (-not $global:showFullName -and $global:commentsEnabled) {
-            Load-CommentsForVisibleItems
-        }
+        # Manual loading only - no automatic loading
     } else {
         $global:fileTable = @()
         $controls.SortCreatedRadio.Checked = $true
@@ -830,10 +840,7 @@ function BindHandlers {
         Update-CommentsDisplay
     })
     
-    # Add mouse wheel event handler for lazy loading comments
-    $controls.ListView.Add_MouseWheel({
-        Load-CommentsForVisibleItems
-    })
+    # Mouse wheel event handler removed - manual loading only
     $controls.SortNameRadio.Add_CheckedChanged({
         if ($controls.SortNameRadio.Checked) {
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
@@ -931,17 +938,19 @@ function BindHandlers {
             $controls.ListView.Columns.Add("Comments", 500) | Out-Null
         }
         
-        Update-ListView
-        
-        # Load comments for visible items if switching to short name mode
-        if (-not $global:showFullName -and $global:commentsEnabled) {
-            Load-CommentsForVisibleItems
-        }
+                 Update-ListView
+         
+         # Update Update button visibility based on display mode
+         if ($global:commentsEnabled) {
+             $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
+         }
+         
+         # Manual loading only - no automatic loading
     })
 
     # Only add comment handlers if comments are enabled
     if ($global:commentsEnabled) {
-        $controls.UpdateCommentsBtn.Add_Click({
+        $controls.SaveCommentsBtn.Add_Click({
             if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
                 $newComments = $controls.CommentsBox.Text
                 
@@ -972,6 +981,12 @@ function BindHandlers {
             }
         })
 
+        $controls.UpdateCommentsBtn.Add_Click({
+            Write-Host "=== Manual Comments Loading Started ===" -ForegroundColor Cyan
+            Load-CommentsForVisibleItems
+            Write-Host "=== Manual Comments Loading Completed ===" -ForegroundColor Cyan
+        })
+
         $controls.CommentsBox.Add_TextChanged({
             if ($global:currentSelectedFile) {
                 $currentText = $controls.CommentsBox.Text
@@ -981,7 +996,7 @@ function BindHandlers {
                 $isDifferent = $currentText -ne $originalText
                 $isNotEmpty = -not [string]::IsNullOrWhiteSpace($currentText)
                 
-                $controls.UpdateCommentsBtn.Enabled = $isDifferent -and $isNotEmpty
+                $controls.SaveCommentsBtn.Enabled = $isDifferent -and $isNotEmpty
             }
         })
     }
