@@ -987,9 +987,28 @@ function BindHandlers {
         })
 
         $controls.UpdateCommentsBtn.Add_Click({
+            # Disable button and show loading state
+            $controls.UpdateCommentsBtn.Enabled = $false
+            $originalText = $controls.UpdateCommentsBtn.Text
+            $controls.UpdateCommentsBtn.Text = "Loading..."
+            
+            # Force UI update to show the new text
+            [System.Windows.Forms.Application]::DoEvents()
+            
+            # Set wait cursor
+            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+            
             Write-Host "=== Manual Comments Loading Started ===" -ForegroundColor Cyan
             Load-CommentsForVisibleItems
             Write-Host "=== Manual Comments Loading Completed ===" -ForegroundColor Cyan
+            
+            # Restore button state and cursor
+            $controls.UpdateCommentsBtn.Text = $originalText
+            $controls.UpdateCommentsBtn.Enabled = $true
+            $form.Cursor = [System.Windows.Forms.Cursors]::Default
+            
+            # Force UI update to show the restored text
+            [System.Windows.Forms.Application]::DoEvents()
         })
 
         $controls.CommentsBox.Add_TextChanged({
