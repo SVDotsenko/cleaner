@@ -155,6 +155,11 @@ function CreateControls {
     $controls.ListView.Columns.Add("File Name", -1) | Out-Null
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
+    
+    # Add Comments column only if TagLib is available and in short name mode
+    if ($global:commentsEnabled -and -not $global:showFullName) {
+        $controls.ListView.Columns.Add("Comments", 500) | Out-Null
+    }
 
     $selectFolderTooltip = @"
 Allows you to select another folder to display and work with its files.
@@ -265,6 +270,10 @@ function Update-InfoLabels {
 
 function Update-ListView {
     $controls.ListView.Items.Clear()
+    
+    # Check if we should show Comments column
+    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    
     foreach ($file in $global:filteredTable) {
         # Show names and dates based on current state
         $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
@@ -272,6 +281,14 @@ function Update-ListView {
         $item.SubItems.Add("$($file.SizeMB)")
         $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
+        
+        # Add Comments column if enabled
+        if ($showComments) {
+            # Use cached comments if available, otherwise show empty
+            $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+            $item.SubItems.Add($comments)
+        }
+        
         $controls.ListView.Items.Add($item) | Out-Null
     }
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
@@ -296,12 +313,24 @@ function Update-ListViewPreserveScroll {
     $controls.ListView.BeginUpdate()
     
     $controls.ListView.Items.Clear()
+    
+    # Check if we should show Comments column
+    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    
     foreach ($file in $global:filteredTable) {
         $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.SubItems.Add("$($file.SizeMB)")
         $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
+        
+        # Add Comments column if enabled
+        if ($showComments) {
+            # Use cached comments if available, otherwise show empty
+            $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+            $item.SubItems.Add($comments)
+        }
+        
         $controls.ListView.Items.Add($item) | Out-Null
     }
     
@@ -327,6 +356,9 @@ function Update-ListViewPreserveScroll {
 }
 
 function Update-ListViewTextColors {
+    # Check if we should show Comments column
+    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    
     # Update text display based on showFullName state
     foreach ($item in $controls.ListView.Items) {
         $fileIndex = $item.Index
@@ -357,30 +389,68 @@ function Update-ListViewTextColors {
             
             # Size column always black
             $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
+            
+            # Update Comments column if enabled
+            if ($showComments -and $item.SubItems.Count -gt 3) {
+                # Use cached comments if available, otherwise show empty
+                $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
+                $item.SubItems[3].Text = $comments
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+            }
         }
     }
     
-    # Auto-resize columns and remember maximum widths
-    $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-    $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-    
-    # Remember maximum widths
-    $currentNameWidth = $controls.ListView.Columns[0].Width
-    $currentDateWidth = $controls.ListView.Columns[2].Width
-    
-    if ($currentNameWidth -gt $global:maxColumnWidths.Name) {
-        $global:maxColumnWidths.Name = $currentNameWidth
+    # Auto-resize columns based on TagLib availability
+    if ($global:commentsEnabled) {
+        # TagLib is available - auto-resize all columns first
+        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        
+        # Set Comments column to fixed width of 500px
+        if ($showComments -and $controls.ListView.Columns.Count -gt 3) {
+            $controls.ListView.Columns[3].Width = 500
+        }
+    } else {
+        # TagLib not available - use original auto-resize logic
+        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     }
-    if ($currentDateWidth -gt $global:maxColumnWidths.Date) {
-        $global:maxColumnWidths.Date = $currentDateWidth
+}
+
+function Load-CommentsForVisibleItems {
+    # Only process if comments are enabled and in short name mode
+    if (-not ($global:commentsEnabled -and -not $global:showFullName)) {
+        return
     }
     
-    # Set columns to maximum width if we have stored values
-    if ($global:maxColumnWidths.Name -gt 0) {
-        $controls.ListView.Columns[0].Width = $global:maxColumnWidths.Name
+    # Get visible items (approximate range)
+    $topIndex = 0
+    if ($null -ne $controls.ListView.TopItem) {
+        $topIndex = $controls.ListView.TopItem.Index
     }
-    if ($global:maxColumnWidths.Date -gt 0) {
-        $controls.ListView.Columns[2].Width = $global:maxColumnWidths.Date
+    
+    # Load comments for visible items (approximately 50 items around current view)
+    $startIndex = [math]::Max(0, $topIndex - 10)
+    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topIndex + 40)
+    
+    $loadedCount = 0
+    for ($i = $startIndex; $i -le $endIndex; $i++) {
+        if ($i -lt $global:filteredTable.Count) {
+            $file = $global:filteredTable[$i]
+            
+            # Load comments if not already loaded
+            if (-not $file.CommentsLoaded) {
+                $file.Comments = Read-FileComments $file.Path
+                $file.CommentsLoaded = $true
+                $loadedCount++
+            }
+        }
+    }
+    
+    # Update the ListView to show loaded comments
+    if ($loadedCount -gt 0) {
+        Update-ListViewTextColors
     }
 }
 
@@ -445,6 +515,44 @@ function Format-ExtractedDate($date, $showTime = $false) {
         return $date.ToString("dd.MM.yy HH:mm:ss")
     } else {
         return $date.ToString("dd.MM.yy")
+    }
+}
+
+
+
+function Load-CommentsForVisibleItems {
+    # Only process if comments are enabled and in short name mode
+    if (-not ($global:commentsEnabled -and -not $global:showFullName)) {
+        return
+    }
+    
+    # Get visible items (approximate range)
+    $topIndex = 0
+    if ($null -ne $controls.ListView.TopItem) {
+        $topIndex = $controls.ListView.TopItem.Index
+    }
+    
+    # Load comments for visible items (approximately 50 items around current view)
+    $startIndex = [math]::Max(0, $topIndex - 10)
+    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topIndex + 40)
+    
+    $loadedCount = 0
+    for ($i = $startIndex; $i -le $endIndex; $i++) {
+        if ($i -lt $global:filteredTable.Count) {
+            $file = $global:filteredTable[$i]
+            
+            # Load comments if not already loaded
+            if (-not $file.CommentsLoaded) {
+                $file.Comments = Read-FileComments $file.Path
+                $file.CommentsLoaded = $true
+                $loadedCount++
+            }
+        }
+    }
+    
+    # Update the ListView to show loaded comments
+    if ($loadedCount -gt 0) {
+        Update-ListViewTextColors
     }
 }
 
@@ -549,7 +657,14 @@ function Update-CommentsDisplay {
                 
                 if ($extension -match "\.(m4a|mp3|ogg)$") {
                     $global:currentSelectedFile = $file
-                    $comments = Read-FileComments $file.Path
+                    
+                    # Load comments if not already loaded
+                    if (-not $file.CommentsLoaded) {
+                        $file.Comments = Read-FileComments $file.Path
+                        $file.CommentsLoaded = $true
+                    }
+                    
+                    $comments = $file.Comments
                     $global:originalCommentsText = $comments
                     $controls.CommentsBox.Text = $comments
                     $controls.UpdateCommentsBtn.Enabled = $false  # Always disabled by default
@@ -583,7 +698,7 @@ $global:folderPath = "G:\My Drive\recordings"
 $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
-$global:maxColumnWidths = @{ Name = 0; Date = 0 }
+$global:maxColumnWidths = @{ Name = 0; Date = 0; Comments = 0 }
 $global:currentSelectedFile = $null
 $global:originalCommentsText = ""
 
@@ -670,6 +785,8 @@ function Get-FilesFromFolder {
                 ExtractedDate = $extractedDate
                 DisplayDate = $displayDate
                 OrigName = $file.Name
+                Comments = $null  # Will be loaded on demand
+                CommentsLoaded = $false
             }
             
             # Write-Host "Created file object: Name=$($fileObj.Name), Path=$($fileObj.Path)" -ForegroundColor Green
@@ -681,6 +798,11 @@ function Get-FilesFromFolder {
         $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Invoke-Search
+        
+        # Load comments for visible items if in short name mode
+        if (-not $global:showFullName -and $global:commentsEnabled) {
+            Load-CommentsForVisibleItems
+        }
     } else {
         $global:fileTable = @()
         $controls.SortCreatedRadio.Checked = $true
@@ -730,6 +852,11 @@ function BindHandlers {
         $controls.BinBtn.Enabled = $hasSelection
         Update-InfoLabels
         Update-CommentsDisplay
+    })
+    
+    # Add scroll event handler for lazy loading comments
+    $controls.ListView.Add_Scroll({
+        Load-CommentsForVisibleItems
     })
     $controls.SortNameRadio.Add_CheckedChanged({
         if ($controls.SortNameRadio.Checked) {
@@ -816,7 +943,24 @@ function BindHandlers {
         } else {
             $controls.ToggleNameBtn.Text = "Full name"
         }
-        Update-ListViewTextColors
+        
+        # Recreate columns based on new state
+        $controls.ListView.Columns.Clear()
+        $controls.ListView.Columns.Add("File Name", -1) | Out-Null
+        $controls.ListView.Columns.Add("MB", 100) | Out-Null
+        $controls.ListView.Columns.Add("Created", 100) | Out-Null
+        
+        # Add Comments column only if TagLib is available and in short name mode
+        if ($global:commentsEnabled -and -not $global:showFullName) {
+            $controls.ListView.Columns.Add("Comments", 500) | Out-Null
+        }
+        
+        Update-ListView
+        
+        # Load comments for visible items if switching to short name mode
+        if (-not $global:showFullName -and $global:commentsEnabled) {
+            Load-CommentsForVisibleItems
+        }
     })
 
     # Only add comment handlers if comments are enabled
@@ -833,6 +977,15 @@ function BindHandlers {
                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
                         Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
                         $global:originalCommentsText = $newComments
+                        
+                        # Update cache
+                        $global:currentSelectedFile.Comments = $newComments
+                        $global:currentSelectedFile.CommentsLoaded = $true
+                        
+                        # Update ListView if in short name mode
+                        if (-not $global:showFullName) {
+                            Update-ListViewTextColors
+                        }
                     } else {
                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
                         Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
@@ -866,7 +1019,22 @@ $form.Add_Resize({
         $controls.ListView.Left = $leftPanelWidth
         $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
         $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
-        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        
+        # Auto-resize columns based on TagLib availability
+        if ($global:commentsEnabled) {
+            # TagLib is available - auto-resize all columns first
+            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+            $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+            $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+            
+            # Set Comments column to fixed width of 500px
+            if (-not $global:showFullName -and $controls.ListView.Columns.Count -gt 3) {
+                $controls.ListView.Columns[3].Width = 500
+            }
+        } else {
+            # TagLib not available - use original auto-resize logic
+            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        }
     }
 })
 
