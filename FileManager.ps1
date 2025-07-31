@@ -434,19 +434,31 @@ function Load-CommentsForVisibleItems {
     $startIndex = [math]::Max(0, $topIndex - 10)
     $endIndex = [math]::Min($global:filteredTable.Count - 1, $topIndex + 40)
     
+    Write-Host "=== Loading Comments for Visible Items ===" -ForegroundColor Cyan
+    Write-Host "Top index: $topIndex, Range: $startIndex to $endIndex" -ForegroundColor Yellow
+    Write-Host "Total files in filtered table: $($global:filteredTable.Count)" -ForegroundColor Yellow
+    
     $loadedCount = 0
+    $skippedCount = 0
     for ($i = $startIndex; $i -le $endIndex; $i++) {
         if ($i -lt $global:filteredTable.Count) {
             $file = $global:filteredTable[$i]
             
             # Load comments if not already loaded
             if (-not $file.CommentsLoaded) {
+                Write-Host "Loading comments for: $($file.Name) (index $i)" -ForegroundColor Green
                 $file.Comments = Read-FileComments $file.Path
                 $file.CommentsLoaded = $true
                 $loadedCount++
+            } else {
+                Write-Host "Skipping already loaded: $($file.Name) (index $i)" -ForegroundColor Gray
+                $skippedCount++
             }
         }
     }
+    
+    Write-Host "Loaded: $loadedCount files, Skipped: $skippedCount files" -ForegroundColor Cyan
+    Write-Host "=== End Loading Comments ===" -ForegroundColor Cyan
     
     # Update the ListView to show loaded comments
     if ($loadedCount -gt 0) {
@@ -519,42 +531,6 @@ function Format-ExtractedDate($date, $showTime = $false) {
 }
 
 
-
-function Load-CommentsForVisibleItems {
-    # Only process if comments are enabled and in short name mode
-    if (-not ($global:commentsEnabled -and -not $global:showFullName)) {
-        return
-    }
-    
-    # Get visible items (approximate range)
-    $topIndex = 0
-    if ($null -ne $controls.ListView.TopItem) {
-        $topIndex = $controls.ListView.TopItem.Index
-    }
-    
-    # Load comments for visible items (approximately 50 items around current view)
-    $startIndex = [math]::Max(0, $topIndex - 10)
-    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topIndex + 40)
-    
-    $loadedCount = 0
-    for ($i = $startIndex; $i -le $endIndex; $i++) {
-        if ($i -lt $global:filteredTable.Count) {
-            $file = $global:filteredTable[$i]
-            
-            # Load comments if not already loaded
-            if (-not $file.CommentsLoaded) {
-                $file.Comments = Read-FileComments $file.Path
-                $file.CommentsLoaded = $true
-                $loadedCount++
-            }
-        }
-    }
-    
-    # Update the ListView to show loaded comments
-    if ($loadedCount -gt 0) {
-        Update-ListViewTextColors
-    }
-}
 
 function Get-DisplayNameFromFileName($fileName) {
     $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
