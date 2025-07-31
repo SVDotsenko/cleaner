@@ -830,8 +830,8 @@ function BindHandlers {
         Update-CommentsDisplay
     })
     
-    # Add scroll event handler for lazy loading comments
-    $controls.ListView.Add_Scroll({
+    # Add mouse wheel event handler for lazy loading comments
+    $controls.ListView.Add_MouseWheel({
         Load-CommentsForVisibleItems
     })
     $controls.SortNameRadio.Add_CheckedChanged({
