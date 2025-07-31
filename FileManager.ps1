@@ -118,8 +118,8 @@ function CreateControls {
         $controls.CommentsBox.ReadOnly = $false
         $controls.CommentsBox.Text = ""
         $form.Controls.Add($controls.CommentsBox)
-        $controls.CommentsBox.SetBounds($x, $y, $btnW, 60)
-        $y += 60 + $gap
+        $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
+        $y += 150 + $gap
 
         # Update Comments Button (only if requirements are met)
         $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
@@ -211,8 +211,8 @@ function LayoutOnlyFonts {
     $y += $btnH + $gap
 
     if ($global:commentsEnabled) {
-        $controls.CommentsBox.SetBounds($x, $y, $btnW, 60)
-        $y += 60 + $gap
+        $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
+        $y += 150 + $gap
         $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
     }
 
