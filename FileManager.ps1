@@ -469,10 +469,22 @@ function Load-CommentsForVisibleItems {
             
             # Load comments if not already loaded
             if (-not $file.CommentsLoaded) {
+                # Highlight current item being processed
+                if ($i -lt $controls.ListView.Items.Count) {
+                    $controls.ListView.Items[$i].BackColor = [System.Drawing.Color]::LightGray
+                    [System.Windows.Forms.Application]::DoEvents()
+                }
+                
                 Write-Host "Loading comments for: $($file.Name) (index $i)" -ForegroundColor Green
                 $file.Comments = Read-FileComments $file.Path
                 $file.CommentsLoaded = $true
                 $loadedCount++
+                
+                # Restore normal background color after processing
+                if ($i -lt $controls.ListView.Items.Count) {
+                    $controls.ListView.Items[$i].BackColor = [System.Drawing.Color]::White
+                    [System.Windows.Forms.Application]::DoEvents()
+                }
             } else {
                 Write-Host "Skipping already loaded: $($file.Name) (index $i)" -ForegroundColor Gray
                 $skippedCount++
