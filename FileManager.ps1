@@ -141,11 +141,22 @@ function CreateControls {
 
     # Create StatusStrip instead of labels
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
+    
+    # Add About link to StatusStrip (left side)
+    $controls.AboutLink = New-Object Windows.Forms.ToolStripStatusLabel
+    $controls.AboutLink.Text = "about"
+    $controls.AboutLink.IsLink = $true
+    $controls.AboutLink.LinkColor = [System.Drawing.Color]::Blue
+    $controls.AboutLink.VisitedLinkColor = [System.Drawing.Color]::Purple
+    $controls.StatusStrip.Items.Add($controls.AboutLink)
+    
+    # Add status label (right side)
     $controls.StatusLabel = New-Object Windows.Forms.ToolStripStatusLabel
     $controls.StatusLabel.Text = "Total files: 0 | Total size: 0 MB"
     $controls.StatusLabel.Spring = $true
     $controls.StatusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleRight
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
+    
     $form.Controls.Add($controls.StatusStrip)
     
     $controls.ListView = New-Object Windows.Forms.ListView
@@ -1054,6 +1065,11 @@ function BindHandlers {
             }
         })
     }
+    
+    # Add About link click handler
+    $controls.AboutLink.Add_Click({
+        Start-Process "https://github.com/SVDotsenko/cleaner/blob/main/readme.md"
+    })
 }
 
 $form.Add_Resize({
