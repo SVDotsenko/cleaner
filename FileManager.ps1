@@ -996,7 +996,13 @@ function BindHandlers {
             $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
         }
         
-        # Manual loading only - no automatic loading
+        # Auto-load comments when switching to short name mode (when Comments column becomes visible)
+        if ($global:commentsEnabled -and -not $global:showFullName) {
+            Write-Host "=== Auto-loading comments on mode switch ===" -ForegroundColor Cyan
+            # Programmatically click the Update button to trigger loading with proper UI feedback
+            $controls.UpdateCommentsBtn.PerformClick()
+            Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
+        }
     })
 
     # Only add comment handlers if comments are enabled
