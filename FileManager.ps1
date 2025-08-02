@@ -691,6 +691,11 @@ function Update-CommentsDisplay {
                         $file.Comments = Read-FileComments $file.Path
                         $file.CommentsLoaded = $true
                         Write-Host "Update-CommentsDisplay: Loaded comments = '$($file.Comments)'" -ForegroundColor Green
+                        
+                        # Update ListView to show the newly loaded comments if in short name mode
+                        if (-not $global:showFullName) {
+                            Update-ListViewTextColors
+                        }
                     } else {
                         Write-Host "Update-CommentsDisplay: Using cached comments = '$($file.Comments)'" -ForegroundColor Green
                     }
