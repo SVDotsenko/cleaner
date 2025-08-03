@@ -1023,7 +1023,28 @@ function BindHandlers {
                 
                 # Check if the new comments are not empty/whitespace only
                 if (-not [string]::IsNullOrWhiteSpace($newComments)) {
+                    # Disable button and show loading state
+                    $controls.SaveCommentsBtn.Enabled = $false
+                    $originalText = $controls.SaveCommentsBtn.Text
+                    $controls.SaveCommentsBtn.Text = "Saving..."
+                    
+                    # Force UI update to show the new text
+                    [System.Windows.Forms.Application]::DoEvents()
+                    
+                    # Set wait cursor
+                    $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+                    
+                    Write-Host "=== Saving Comments Started ===" -ForegroundColor Cyan
                     $success = Write-FileComments $global:currentSelectedFile.Path $newComments
+                    Write-Host "=== Saving Comments Completed ===" -ForegroundColor Cyan
+                    
+                    # Restore button state and cursor
+                    $controls.SaveCommentsBtn.Text = $originalText
+                    $controls.SaveCommentsBtn.Enabled = $true
+                    $form.Cursor = [System.Windows.Forms.Cursors]::Default
+                    
+                    # Force UI update to show the restored text
+                    [System.Windows.Forms.Application]::DoEvents()
                     
                     if ($success) {
                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
