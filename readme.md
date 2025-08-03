@@ -1,218 +1,187 @@
 # File Manager in PowerShell
 
-## Description
-
 A graphical application for Windows written in PowerShell, designed for convenient viewing, sorting, and deleting files in a selected folder. Allows you to quickly work with large lists of files, supports deletion to Recycle Bin, opening files with a double-click, sorting by name, size, and date, as well as displaying statistics on the number and size of files.
-
-**New Feature**: Comments functionality allows you to read and edit comments/metadata in audio files (MP3, M4A, OGG). The application now supports automatic loading of comments when switching to short name mode and displays comments directly in the file list.
 
 ---
 
-## Installation
+## 🚀 Quick Start - Basic Usage
 
-1. Download the `FileManager.ps1` file to any convenient folder.
-2. Make sure you have PowerShell 5.1 (or newer) installed on your computer.
-3. (Recommended) To run without a console window, create a shortcut with the `-WindowStyle Hidden` parameter or use a .vbs wrapper.
+**For users who want to quickly try the application without any setup**
 
-### Additional Requirements for Comments Functionality
+### What You Get
+- ✅ **File browsing and management** - View, sort, and delete files
+- ✅ **Sorting options** - By name, size, and creation date  
+- ✅ **File operations** - Delete to Recycle Bin or permanently
+- ✅ **Statistics** - File count and total size display
+- ✅ **No installation required** - Works with any PowerShell 5.1+
 
-To use the comments feature (reading and editing file comments), you need to install additional components:
+### Installation & Launch
+
+1. **Download** the `FileManager.ps1` file to any folder
+2. **Double-click** the file to run (if .ps1 files are associated with PowerShell)
+3. **Or run via PowerShell:**
+   ```powershell
+   powershell.exe -ExecutionPolicy Bypass -File "C:\path\to\FileManager.ps1"
+   ```
+
+### Basic Usage
+
+- **Default folder**: `G:\My Drive\recordings` (if it exists)
+- **Select folder**: Use the "Folder" button to choose another directory
+- **File types**: Displays `.m4a`, `.mp3`, `.ogg` files
+- **Sorting**: Use the radio buttons at the top (Name, Size, Created)
+- **Delete files**: Select files and click "Delete" 
+- **Open files**: Double-click any file to open in default application
+- **Display modes**: Toggle between "Full name" and "Short name" modes
+
+### Display Modes
+- **Full Name Mode**: Complete file names with full dates and time
+- **Short Name Mode**: Shortened names with dates only (no time)
+
+### Requirements
+- Windows with PowerShell 5.1 or newer
+- No additional software needed
+- No system changes made
+
+---
+
+## 🔧 Advanced Features - Full Functionality
+
+**For power users and developers who want the complete experience**
+
+### What You Get (Everything Above +)
+- ✅ **Comments functionality** - Read and edit audio file metadata
+- ✅ **Auto-loading comments** - Automatic comment loading in short name mode
+- ✅ **Real-time updates** - Comments displayed directly in file list
+- ✅ **Unit testing** - Comprehensive test suite for development
+- ✅ **Enhanced UI feedback** - Loading indicators and better error handling
+
+### Installation Requirements
 
 #### 1. PowerShell 7+ (Required)
-The comments functionality requires PowerShell 7 or newer. To install:
-
-**Option A - Using winget (recommended):**
-```
+```powershell
+# Option A - Using winget (recommended)
 winget install Microsoft.PowerShell
-```
 
-**Option B - Manual download:**
-- Go to https://github.com/PowerShell/PowerShell/releases
-- Download the latest version for Windows
-- Install and restart your computer
+# Option B - Manual download
+# Go to https://github.com/PowerShell/PowerShell/releases
+# Download latest version for Windows and install
+```
 
 #### 2. TagLibCli Module (Required)
-Install the TagLibCli PowerShell module:
-
 ```powershell
 Install-Module -Name TagLibCli -Force
 ```
 
-**Note**: This module includes the necessary TagLibSharp.dll file for reading/writing audio file metadata.
-
 #### 3. Verification
-After installation, you can verify everything is working by running:
 ```powershell
 $PSVersionTable.PSVersion  # Should show 7.x.x
+```
+```powershell
 Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 ```
 
----
+### Advanced Usage
 
-## Testing
+#### Comments Feature
+- **Automatic Loading**: Comments load automatically when switching to short name mode
+- **Manual Loading**: Use "Update" button to load comments for visible files
+- **Individual Editing**: Select a single audio file to view/edit comments in text box
+- **Real-time Display**: Comments shown directly in file list when in short name mode
+- **Save Changes**: Edit comments and click "Save" to update files
+- **Supported Formats**: MP3, M4A, OGG audio files
 
-The project includes unit tests written for **Pester 5.x** and **PowerShell 7+**.
+#### Enhanced Sorting
+- **Name**: Sorts by file name (A-Z), then by date (newest first)
+- **Size**: Sorts by file size (largest first)  
+- **Created**: Sorts by creation date (newest first)
 
-### Checking Pester Version
+### Testing (For Developers)
 
-To check which version of Pester is installed:
+#### Prerequisites
+- **PowerShell 7+** (required)
+- **Pester 5.x** (required)
 
+#### Installing Pester 5.x
 ```powershell
-# Check all installed Pester versions
+# Check current version
 Get-Module -Name Pester -ListAvailable
-
-# Check currently loaded Pester version
-Get-Module -Name Pester
-
-# Check only version number
-(Get-Module -Name Pester).Version
 ```
-
-### Installing/Updating Pester
-
-If you have an older version of Pester (3.x), update to version 5.x:
-
 ```powershell
 # Remove old versions (if installed via PowerShellGet)
 Uninstall-Module -Name Pester -AllVersions -Force
-
-# For system-installed Pester (like 3.4.0), manually remove it:
-# Navigate to the module directory and delete the Pester folder
-# Note: This requires administrator privileges
+```
+```powershell
+# For system-installed Pester, manually remove (requires admin):
 Remove-Item -Path "C:\Program Files\WindowsPowerShell\Modules\Pester" -Recurse -Force
-
+```
+```powershell
 # Install latest Pester 5.x
 Install-Module -Name Pester -Force -SkipPublisherCheck
-
-# Verify installation
-Get-Module -Name Pester -ListAvailable
 ```
 
 **Alternative approach (without removing system module):**
 ```powershell
-# Install Pester 5.x alongside the existing version
+# Install Pester 5.x alongside existing version
 Install-Module -Name Pester -Force -SkipPublisherCheck
-
-# Force load the newer version when running tests
+```
+```powershell
+# Force load newer version when running tests
 Import-Module Pester -Force
-Invoke-Pester -Path ".\tests\"
 ```
 
-**Note**: If you get "Access Denied" when trying to remove the system Pester module, you need to run PowerShell as Administrator. Right-click on PowerShell and select "Run as Administrator", then execute the removal command.
-```
-
-### Running Tests
-
-**Important**: Tests must be run from the **project root directory** (where `FileManager.ps1` is located), not from the `tests` folder.
+#### Running Tests
+**Important**: Run from project root directory (where `FileManager.ps1` is located)
 
 ```powershell
 # Navigate to project root
 cd C:\repositories\cleaner
-
+```
+```powershell
 # Run all tests
 Invoke-Pester -Path ".\tests\"
-
+```
+```powershell
 # Run with detailed output
 Invoke-Pester -Path ".\tests\" -Output Detailed
-
+```
+```powershell
 # Force reload Pester module (if having issues)
 Import-Module Pester -Force; Invoke-Pester -Path ".\tests\"
 ```
 
-### Test Structure
-
+#### Test Coverage
 Tests are located in `tests/FileManager.Tests.ps1` and cover:
-
 - **Format-ExtractedDate**: Date formatting with/without time, null handling
 - **Get-DisplayNameFromFileName**: Filename processing and letter extraction
 
-### Troubleshooting
-
-If tests fail with Pester 3.x errors, ensure you're using Pester 5.x:
-
+#### Troubleshooting Tests
+If tests fail with Pester 3.x errors:
 ```powershell
 # Check version
 Get-Module -Name Pester
-
+```
+```powershell
 # If showing 3.x, force reload 5.x
 Import-Module Pester -Force
+```
+```powershell
 Invoke-Pester -Path ".\tests\"
 ```
 
----
+### Configuration
 
-## Launch
+- **Default folder**: Change `$global:folderPath` variable at script beginning
+- **Font settings**: Modify `$global:fontSize` and `$global:fontFamily` variables
+- **Console window**: Use shortcut with `-WindowStyle Hidden` parameter
 
-- Double-click the `FileManager.ps1` file (if .ps1 files are associated with PowerShell).
-- Or run via PowerShell with the command:
-  ```
-  powershell.exe -ExecutionPolicy Bypass -File "C:\path\to\FileManager.ps1"
-  ```
-- To run without a console window, use a shortcut:
-  ```
-  powershell.exe -WindowStyle Hidden -ExecutionPolicy Bypass -File "C:\path\to\FileManager.ps1"
-  ```
-
-**Important**: For comments functionality, make sure you're running with PowerShell 7+.
-
----
-
-## Usage
-
-- By default, the folder `G:\My Drive\recordings` is opened (if it exists).
-- You can select another folder using the "Folder" button.
-- The table displays files with extensions `.m4a`, `.mp3`, `.ogg`.
-- Sorting by name, size, and date is available (buttons at the top of the window).
-- To delete, select files and click "Delete" (you can choose to delete to Recycle Bin or permanently).
-- Double-clicking a file opens it in the default application.
-- At the bottom, statistics on the number and size of files are displayed.
-
-### Display Modes
-- **Full Name Mode**: Shows complete file names and full dates with time
-- **Short Name Mode**: Shows shortened file names and dates without time, plus a Comments column
-- Toggle between modes using the "Short name"/"Full name" button
-
-### Comments Feature
-- **Automatic Loading**: When switching to short name mode, comments are automatically loaded for visible files
-- **Manual Loading**: Use the "Update" button to load comments for visible files
-- **Individual Selection**: Select a single audio file to view and edit its comments in the text box
-- **Real-time Updates**: Comments are displayed directly in the file list when in short name mode
-- **Save Changes**: Edit comments in the text box and click "Save" to update the file
-- **Supported Formats**: MP3, M4A, OGG audio files
-- **Requirements Check**: The application automatically checks for required components and shows notifications
-
-### Sorting Options
-- **Name**: Sorts by file name (A-Z), then by date (newest first)
-- **Size**: Sorts by file size (largest first)
-- **Created**: Sorts by creation date (newest first)
-
----
-
-## Configuration
-
-- The default folder path can be changed in the `$global:folderPath` variable at the beginning of the script.
-- Font size and family are set by the `$global:fontSize` and `$global:fontFamily` variables.
-- To run without a console window, use a shortcut with the `-WindowStyle Hidden` parameter or a .vbs wrapper.
-
----
-
-## Requirements
-
-- Windows with PowerShell 5.1 or newer installed.
-- Does not require third-party libraries for basic functionality.
-- Does not make changes to the system.
-- To run without a console window, it is recommended to use a shortcut or a .vbs wrapper.
-
-### For Comments Functionality:
-- **PowerShell 7+** (required)
-- **TagLibCli module** (required)
-- Audio files with supported formats (MP3, M4A, OGG)
+### Requirements for Advanced Features
+- **PowerShell 7+** (required for comments)
+- **TagLibCli module** (required for comments)
+- **Audio files** with supported formats (MP3, M4A, OGG)
+- **Pester 5.x** (required for testing)
 
 If requirements are not met, the application will show notification messages and disable the comments interface.
-
-### For Testing:
-- **PowerShell 7+** (required)
-- **Pester 5.x** (required)
 
 ---
 
