@@ -1038,28 +1038,30 @@ function BindHandlers {
                     $success = Write-FileComments $global:currentSelectedFile.Path $newComments
                     Write-Host "=== Saving Comments Completed ===" -ForegroundColor Cyan
                     
-                    # Restore button state and cursor
-                    $controls.SaveCommentsBtn.Text = $originalText
-                    $controls.SaveCommentsBtn.Enabled = $true
-                    $form.Cursor = [System.Windows.Forms.Cursors]::Default
-                    
-                    # Force UI update to show the restored text
-                    [System.Windows.Forms.Application]::DoEvents()
-                    
-                    if ($success) {
-                        $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
-                        Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
-                        $global:originalCommentsText = $newComments
-                        
-                        # Update cache
-                        $global:currentSelectedFile.Comments = $newComments
-                        $global:currentSelectedFile.CommentsLoaded = $true
-                        
-                        # Update ListView if in short name mode
-                        if (-not $global:showFullName) {
-                            Update-ListViewTextColors
-                        }
-                    } else {
+                                         # Restore button state and cursor
+                     $controls.SaveCommentsBtn.Text = $originalText
+                     $form.Cursor = [System.Windows.Forms.Cursors]::Default
+                     
+                     # Force UI update to show the restored text
+                     [System.Windows.Forms.Application]::DoEvents()
+                     
+                     if ($success) {
+                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                         Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
+                         $global:originalCommentsText = $newComments
+                         
+                         # Update cache
+                         $global:currentSelectedFile.Comments = $newComments
+                         $global:currentSelectedFile.CommentsLoaded = $true
+                         
+                         # Update ListView if in short name mode
+                         if (-not $global:showFullName) {
+                             Update-ListViewTextColors
+                         }
+                         
+                         # Disable Save button after successful save
+                         $controls.SaveCommentsBtn.Enabled = $false
+                     } else {
                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
                         Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
                     }
