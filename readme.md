@@ -49,6 +49,98 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 
 ---
 
+## Testing
+
+The project includes unit tests written for **Pester 5.x** and **PowerShell 7+**.
+
+### Checking Pester Version
+
+To check which version of Pester is installed:
+
+```powershell
+# Check all installed Pester versions
+Get-Module -Name Pester -ListAvailable
+
+# Check currently loaded Pester version
+Get-Module -Name Pester
+
+# Check only version number
+(Get-Module -Name Pester).Version
+```
+
+### Installing/Updating Pester
+
+If you have an older version of Pester (3.x), update to version 5.x:
+
+```powershell
+# Remove old versions (if installed via PowerShellGet)
+Uninstall-Module -Name Pester -AllVersions -Force
+
+# For system-installed Pester (like 3.4.0), manually remove it:
+# Navigate to the module directory and delete the Pester folder
+# Note: This requires administrator privileges
+Remove-Item -Path "C:\Program Files\WindowsPowerShell\Modules\Pester" -Recurse -Force
+
+# Install latest Pester 5.x
+Install-Module -Name Pester -Force -SkipPublisherCheck
+
+# Verify installation
+Get-Module -Name Pester -ListAvailable
+```
+
+**Alternative approach (without removing system module):**
+```powershell
+# Install Pester 5.x alongside the existing version
+Install-Module -Name Pester -Force -SkipPublisherCheck
+
+# Force load the newer version when running tests
+Import-Module Pester -Force
+Invoke-Pester -Path ".\tests\"
+```
+
+**Note**: If you get "Access Denied" when trying to remove the system Pester module, you need to run PowerShell as Administrator. Right-click on PowerShell and select "Run as Administrator", then execute the removal command.
+```
+
+### Running Tests
+
+**Important**: Tests must be run from the **project root directory** (where `FileManager.ps1` is located), not from the `tests` folder.
+
+```powershell
+# Navigate to project root
+cd C:\repositories\cleaner
+
+# Run all tests
+Invoke-Pester -Path ".\tests\"
+
+# Run with detailed output
+Invoke-Pester -Path ".\tests\" -Output Detailed
+
+# Force reload Pester module (if having issues)
+Import-Module Pester -Force; Invoke-Pester -Path ".\tests\"
+```
+
+### Test Structure
+
+Tests are located in `tests/FileManager.Tests.ps1` and cover:
+
+- **Format-ExtractedDate**: Date formatting with/without time, null handling
+- **Get-DisplayNameFromFileName**: Filename processing and letter extraction
+
+### Troubleshooting
+
+If tests fail with Pester 3.x errors, ensure you're using Pester 5.x:
+
+```powershell
+# Check version
+Get-Module -Name Pester
+
+# If showing 3.x, force reload 5.x
+Import-Module Pester -Force
+Invoke-Pester -Path ".\tests\"
+```
+
+---
+
 ## Launch
 
 - Double-click the `FileManager.ps1` file (if .ps1 files are associated with PowerShell).
@@ -118,6 +210,10 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 
 If requirements are not met, the application will show notification messages and disable the comments interface.
 
+### For Testing:
+- **PowerShell 7+** (required)
+- **Pester 5.x** (required)
+
 ---
 
 ## Recent Updates
@@ -128,3 +224,4 @@ If requirements are not met, the application will show notification messages and
 - **Better UI feedback** during comment loading operations
 - **Enhanced error handling** and user notifications
 - **Real-time comment updates** in the file list
+- **Unit tests** for core functions using Pester 5.x
