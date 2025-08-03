@@ -205,6 +205,15 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SortNameRadio, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeRadio, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedRadio, $sortCreatedTooltip.Trim())
+
+    # Add tooltip for Update button if comments are enabled
+    if ($global:commentsEnabled) {
+        $updateTooltip = @"
+Loads metadata comments for visible files in the list.
+Comments are loaded on-demand to improve performance.
+"@
+        $toolTip.SetToolTip($controls.UpdateCommentsBtn, $updateTooltip.Trim())
+    }
 }
 
 function LayoutOnlyFonts {
