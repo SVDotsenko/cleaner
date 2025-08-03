@@ -523,9 +523,8 @@ function Load-CommentsForVisibleItems {
             
             # Load comments if not already loaded
             if (-not $file.CommentsLoaded) {
-                # Highlight current item being processed
+                # Серый фон для всех столбцов
                 if ($i -lt $controls.ListView.Items.Count) {
-                    # Серый фон для всех столбцов
                     $item = $controls.ListView.Items[$i]
                     $item.BackColor = [System.Drawing.Color]::LightGray
                     foreach ($subItem in $item.SubItems) {
@@ -538,7 +537,18 @@ function Load-CommentsForVisibleItems {
                 $file.Comments = Read-FileComments $file.Path
                 $file.CommentsLoaded = $true
                 $loadedCount++
-                
+
+                # --- обновляем комментарии сразу после загрузки ---
+                if ($i -lt $controls.ListView.Items.Count) {
+                    $item = $controls.ListView.Items[$i]
+                    if ($item.SubItems.Count -gt 3) {
+                        $item.SubItems[3].Text = $file.Comments
+                        $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+                    }
+                    [System.Windows.Forms.Application]::DoEvents()
+                }
+                # -------------------------------------------------
+
                 # Restore normal background color after processing
                 if ($i -lt $controls.ListView.Items.Count) {
                     $item = $controls.ListView.Items[$i]
@@ -554,7 +564,6 @@ function Load-CommentsForVisibleItems {
             }
         }
     }
-    
     Write-Host "Loaded: $loadedCount files, Skipped: $skippedCount files" -ForegroundColor Cyan
     Write-Host "=== End Loading Comments ===" -ForegroundColor Cyan
     
