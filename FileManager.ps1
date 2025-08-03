@@ -310,6 +310,7 @@ function Update-ListView {
         # Show names and dates based on current state
         $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
+        $item.UseItemStyleForSubItems = $false   # <-- добавлено!
         $item.SubItems.Add("$($file.SizeMB)")
         $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
@@ -325,6 +326,13 @@ function Update-ListView {
                 $comments = "not updated"
             }
             $item.SubItems.Add($comments)
+            
+            # Set initial color for the comments subitem
+            if ($file.CommentsLoaded) {
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+            } else {
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+            }
         }
         
         $controls.ListView.Items.Add($item) | Out-Null
@@ -358,6 +366,7 @@ function Update-ListViewPreserveScroll {
     foreach ($file in $global:filteredTable) {
         $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
         $item = New-Object Windows.Forms.ListViewItem($displayName)
+        $item.UseItemStyleForSubItems = $false   # <-- добавлено!
         $item.SubItems.Add("$($file.SizeMB)")
         $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
         $item.SubItems.Add($displayDate)
@@ -373,6 +382,13 @@ function Update-ListViewPreserveScroll {
                 $comments = "not updated"
             }
             $item.SubItems.Add($comments)
+            
+            # Set initial color for the comments subitem
+            if ($file.CommentsLoaded) {
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+            } else {
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+            }
         }
         
         $controls.ListView.Items.Add($item) | Out-Null
@@ -509,7 +525,12 @@ function Load-CommentsForVisibleItems {
             if (-not $file.CommentsLoaded) {
                 # Highlight current item being processed
                 if ($i -lt $controls.ListView.Items.Count) {
-                    $controls.ListView.Items[$i].BackColor = [System.Drawing.Color]::LightGray
+                    # Серый фон для всех столбцов
+                    $item = $controls.ListView.Items[$i]
+                    $item.BackColor = [System.Drawing.Color]::LightGray
+                    foreach ($subItem in $item.SubItems) {
+                        $subItem.BackColor = [System.Drawing.Color]::LightGray
+                    }
                     [System.Windows.Forms.Application]::DoEvents()
                 }
                 
@@ -520,7 +541,11 @@ function Load-CommentsForVisibleItems {
                 
                 # Restore normal background color after processing
                 if ($i -lt $controls.ListView.Items.Count) {
-                    $controls.ListView.Items[$i].BackColor = [System.Drawing.Color]::White
+                    $item = $controls.ListView.Items[$i]
+                    $item.BackColor = [System.Drawing.Color]::White
+                    foreach ($subItem in $item.SubItems) {
+                        $subItem.BackColor = [System.Drawing.Color]::White
+                    }
                     [System.Windows.Forms.Application]::DoEvents()
                 }
             } else {
