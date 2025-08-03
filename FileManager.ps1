@@ -331,7 +331,7 @@ function Update-ListView {
             if ($file.CommentsLoaded) {
                 $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
             } else {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray  # было Gray
             }
         }
         
@@ -387,7 +387,7 @@ function Update-ListViewPreserveScroll {
             if ($file.CommentsLoaded) {
                 $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
             } else {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+                $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray  # было Gray
             }
         }
         
@@ -466,7 +466,7 @@ function Update-ListViewTextColors {
                 if ($file.CommentsLoaded) {
                     $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
                 } else {
-                    $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+                    $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray  # было Gray
                 }
             }
         }
