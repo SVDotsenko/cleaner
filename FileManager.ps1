@@ -895,7 +895,8 @@ function BindHandlers {
     $controls.SortNameRadio.Add_CheckedChanged({
         if ($controls.SortNameRadio.Checked) {
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
+           $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="DisplayDate"; Ascending=$false}
+            # $global:filteredTable = $global:filteredTable | Sort-Object @{Expression="Name"; Ascending=$true}, @{Expression="SizeMB"; Ascending=$true}
             Update-ListView
             $form.Cursor = [System.Windows.Forms.Cursors]::Default
         }

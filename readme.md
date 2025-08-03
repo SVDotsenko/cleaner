@@ -4,7 +4,7 @@
 
 A graphical application for Windows written in PowerShell, designed for convenient viewing, sorting, and deleting files in a selected folder. Allows you to quickly work with large lists of files, supports deletion to Recycle Bin, opening files with a double-click, sorting by name, size, and date, as well as displaying statistics on the number and size of files.
 
-**New Feature**: Comments functionality allows you to read and edit comments/metadata in audio files (MP3, M4A, OGG).
+**New Feature**: Comments functionality allows you to read and edit comments/metadata in audio files (MP3, M4A, OGG). The application now supports automatic loading of comments when switching to short name mode and displays comments directly in the file list.
 
 ---
 
@@ -75,11 +75,24 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 - Double-clicking a file opens it in the default application.
 - At the bottom, statistics on the number and size of files are displayed.
 
+### Display Modes
+- **Full Name Mode**: Shows complete file names and full dates with time
+- **Short Name Mode**: Shows shortened file names and dates without time, plus a Comments column
+- Toggle between modes using the "Short name"/"Full name" button
+
 ### Comments Feature
-- Select a single audio file to view its comments in the text box below the "Folder" button.
-- Edit the comments and click "Update" to save changes.
-- The feature only works with audio files (MP3, M4A, OGG).
-- If requirements are not met, you'll see notification messages and the comments interface will be hidden.
+- **Automatic Loading**: When switching to short name mode, comments are automatically loaded for visible files
+- **Manual Loading**: Use the "Update" button to load comments for visible files
+- **Individual Selection**: Select a single audio file to view and edit its comments in the text box
+- **Real-time Updates**: Comments are displayed directly in the file list when in short name mode
+- **Save Changes**: Edit comments in the text box and click "Save" to update the file
+- **Supported Formats**: MP3, M4A, OGG audio files
+- **Requirements Check**: The application automatically checks for required components and shows notifications
+
+### Sorting Options
+- **Name**: Sorts by file name (A-Z), then by date (newest first)
+- **Size**: Sorts by file size (largest first)
+- **Created**: Sorts by creation date (newest first)
 
 ---
 
@@ -104,3 +117,14 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 - Audio files with supported formats (MP3, M4A, OGG)
 
 If requirements are not met, the application will show notification messages and disable the comments interface.
+
+---
+
+## Recent Updates
+
+- **Auto-loading comments** when switching to short name mode
+- **Comments column** in the file list for quick viewing
+- **Improved sorting** by name (now sorts by name then by date)
+- **Better UI feedback** during comment loading operations
+- **Enhanced error handling** and user notifications
+- **Real-time comment updates** in the file list
