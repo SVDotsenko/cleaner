@@ -316,10 +316,14 @@ function Update-ListView {
         
         # Add Comments column if enabled
         if ($showComments) {
-            # Use cached comments if available, otherwise show empty
-            $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
-            # Ensure comments is never null
-            if ($null -eq $comments) { $comments = "" }
+            # Use cached comments if available, otherwise show "not updated"
+            if ($file.CommentsLoaded) {
+                $comments = $file.Comments
+                # Ensure comments is never null
+                if ($null -eq $comments) { $comments = "" }
+            } else {
+                $comments = "not updated"
+            }
             $item.SubItems.Add($comments)
         }
         
@@ -360,10 +364,14 @@ function Update-ListViewPreserveScroll {
         
         # Add Comments column if enabled
         if ($showComments) {
-            # Use cached comments if available, otherwise show empty
-            $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
-            # Ensure comments is never null
-            if ($null -eq $comments) { $comments = "" }
+            # Use cached comments if available, otherwise show "not updated"
+            if ($file.CommentsLoaded) {
+                $comments = $file.Comments
+                # Ensure comments is never null
+                if ($null -eq $comments) { $comments = "" }
+            } else {
+                $comments = "not updated"
+            }
             $item.SubItems.Add($comments)
         }
         
@@ -428,12 +436,22 @@ function Update-ListViewTextColors {
             
             # Update Comments column if enabled
             if ($showComments -and $item.SubItems.Count -gt 3) {
-                # Use cached comments if available, otherwise show empty
-                $comments = if ($file.CommentsLoaded) { $file.Comments } else { "" }
-                # Ensure comments is never null
-                if ($null -eq $comments) { $comments = "" }
+                # Use cached comments if available, otherwise show "not updated"
+                if ($file.CommentsLoaded) {
+                    $comments = $file.Comments
+                    # Ensure comments is never null
+                    if ($null -eq $comments) { $comments = "" }
+                } else {
+                    $comments = "not updated"
+                }
                 $item.SubItems[3].Text = $comments
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+                
+                # Set color based on whether comments are loaded
+                if ($file.CommentsLoaded) {
+                    $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+                } else {
+                    $item.SubItems[3].ForeColor = [System.Drawing.Color]::Gray
+                }
             }
         }
     }
