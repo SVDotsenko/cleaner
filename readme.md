@@ -32,11 +32,10 @@ A graphical application for Windows written in PowerShell, designed for convenie
 - **Sorting**: Use the radio buttons at the top (Name, Size, Created)
 - **Delete files**: Select files and click "Delete" 
 - **Open files**: Double-click any file to open in default application
-- **Display modes**: Toggle between "Full name" and "Short name" modes
+- **Display mode**: Compact mode with short file names and full date/time format
 
-### Display Modes
-- **Full Name Mode**: Complete file names with full dates and time
-- **Short Name Mode**: Shortened names with dates only (no time)
+### Display Mode
+- **Compact Mode**: Shortened file names with full date and time format (dd.MM.yy HH:mm:ss)
 
 ### Requirements
 - Windows with PowerShell 5.1 or newer
@@ -51,8 +50,9 @@ A graphical application for Windows written in PowerShell, designed for convenie
 
 ### What You Get (Everything Above +)
 - ✅ **Comments functionality** - Read and edit audio file metadata
-- ✅ **Auto-loading comments** - Automatic comment loading in short name mode
+- ✅ **Auto-loading comments** - Automatic comment loading on startup and scroll
 - ✅ **Real-time updates** - Comments displayed directly in file list
+- ✅ **Scroll-based updates** - Comments automatically update when scrolling
 - ✅ **Unit testing** - Comprehensive test suite for development
 - ✅ **Enhanced UI feedback** - Loading indicators and better error handling
 
@@ -84,10 +84,11 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 ### Advanced Usage
 
 #### Comments Feature
-- **Automatic Loading**: Comments load automatically when switching to short name mode
-- **Manual Loading**: Use "Update" button to load comments for visible files
+- **Automatic Loading**: Comments load automatically on application startup
+- **Scroll-based Updates**: Comments automatically update when scrolling through the list
+- **Manual Loading**: Use "Update" button to manually load comments for visible files
 - **Individual Editing**: Select a single audio file to view/edit comments in text box
-- **Real-time Display**: Comments shown directly in file list when in short name mode
+- **Real-time Display**: Comments shown directly in file list
 - **Save Changes**: Edit comments and click "Save" to update files
 - **Supported Formats**: MP3, M4A, OGG audio files
 
@@ -95,6 +96,12 @@ Get-Module -Name TagLibCli -ListAvailable  # Should show the module
 - **Name**: Sorts by file name (A-Z), then by date (newest first)
 - **Size**: Sorts by file size (largest first)  
 - **Created**: Sorts by creation date (newest first)
+
+#### Scroll Detection
+- **Mouse wheel scrolling**: Automatically updates comments
+- **Keyboard navigation**: Arrow keys, Page Up/Down, Home/End trigger updates
+- **Scrollbar dragging**: Mouse interactions with scrollbar trigger updates
+- **Debounced updates**: 500ms delay after scrolling stops to prevent excessive updates
 
 ### Testing (For Developers)
 
@@ -182,15 +189,3 @@ Invoke-Pester -Path ".\tests\"
 - **Pester 5.x** (required for testing)
 
 If requirements are not met, the application will show notification messages and disable the comments interface.
-
----
-
-## Recent Updates
-
-- **Auto-loading comments** when switching to short name mode
-- **Comments column** in the file list for quick viewing
-- **Improved sorting** by name (now sorts by name then by date)
-- **Better UI feedback** during comment loading operations
-- **Enhanced error handling** and user notifications
-- **Real-time comment updates** in the file list
-- **Unit tests** for core functions using Pester 5.x
