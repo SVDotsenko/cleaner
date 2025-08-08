@@ -937,6 +937,41 @@ function BindHandlers {
             }
         }
     })
+    
+    # Track scroll position for auto-updating comments
+    $global:lastScrollTop = 0
+    $global:scrollTimer = $null
+    
+    # Create a timer to handle scroll events
+    $global:scrollTimer = New-Object System.Windows.Forms.Timer
+    $global:scrollTimer.Interval = 500  # 500ms delay
+    $global:scrollTimer.Add_Tick({
+        $currentTop = $controls.ListView.TopItem
+        if ($currentTop -and $currentTop.Index -ne $global:lastScrollTop) {
+            $global:lastScrollTop = $currentTop.Index
+            if ($global:commentsEnabled) {
+                $controls.UpdateCommentsBtn.PerformClick()
+            }
+        }
+        $global:scrollTimer.Stop()
+    })
+    
+    # Monitor scroll events using a different approach
+    $controls.ListView.Add_SelectedIndexChanged({
+        # This will trigger on selection changes, but also helps track scroll
+        if ($global:commentsEnabled) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
+    
+    # Add mouse wheel event handler for scroll detection
+    $controls.ListView.Add_MouseWheel({
+        if ($global:commentsEnabled) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
 
 
     if ($global:commentsEnabled) {
