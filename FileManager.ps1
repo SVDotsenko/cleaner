@@ -1057,7 +1057,7 @@ $form.Add_Shown({
     # Auto-load comments for visible items on startup
     if ($global:commentsEnabled) {
         Write-Host "=== Auto-loading comments on startup ===" -ForegroundColor Cyan
-        Load-CommentsForVisibleItems
+        $controls.UpdateCommentsBtn.PerformClick()
         Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
     }
     
