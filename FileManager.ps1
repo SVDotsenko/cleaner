@@ -497,6 +497,11 @@ function Load-CommentsForVisibleItems {
     if ($loadedCount -gt 0) {
         Update-ListViewTextColors
     }
+    
+    # Disable the Update button after loading is completed
+    if ($global:commentsEnabled -and $controls.UpdateCommentsBtn) {
+        $controls.UpdateCommentsBtn.Enabled = $false
+    }
 }
 
 function Get-DateFromFileName($fileName, $extension) {
@@ -941,7 +946,7 @@ function BindHandlers {
     # Track scroll position for auto-updating comments
     $global:lastScrollTop = 0
     $global:scrollTimer = $null
-    
+
     # Create a timer to handle scroll events
     $global:scrollTimer = New-Object System.Windows.Forms.Timer
     $global:scrollTimer.Interval = 500  # 500ms delay
@@ -950,62 +955,38 @@ function BindHandlers {
         if ($currentTop -and $currentTop.Index -ne $global:lastScrollTop) {
             $global:lastScrollTop = $currentTop.Index
             if ($global:commentsEnabled) {
+                # Enable the Update button when scrolling occurs
+                $controls.UpdateCommentsBtn.Enabled = $true
                 $controls.UpdateCommentsBtn.PerformClick()
             }
         }
         $global:scrollTimer.Stop()
     })
-    
-    # Monitor scroll events using a different approach
+
+    # Monitor scroll events using SelectedIndexChanged
     $controls.ListView.Add_SelectedIndexChanged({
-        # This will trigger on selection changes, but also helps track scroll
         if ($global:commentsEnabled) {
+            $controls.UpdateCommentsBtn.Enabled = $true
             $global:scrollTimer.Stop()
             $global:scrollTimer.Start()
         }
     })
-    
+
     # Add mouse wheel event handler for scroll detection
     $controls.ListView.Add_MouseWheel({
         if ($global:commentsEnabled) {
+            # Enable the Update button when scrolling occurs
+            $controls.UpdateCommentsBtn.Enabled = $true
             $global:scrollTimer.Stop()
             $global:scrollTimer.Start()
         }
     })
-    
-    # Add key event handler for arrow keys and page up/down
-    $controls.ListView.Add_KeyDown({
-        param($sender, $e)
-        if ($global:commentsEnabled -and ($e.KeyCode -eq [System.Windows.Forms.Keys]::Up -or 
-            $e.KeyCode -eq [System.Windows.Forms.Keys]::Down -or 
-            $e.KeyCode -eq [System.Windows.Forms.Keys]::PageUp -or 
-            $e.KeyCode -eq [System.Windows.Forms.Keys]::PageDown -or
-            $e.KeyCode -eq [System.Windows.Forms.Keys]::Home -or
-            $e.KeyCode -eq [System.Windows.Forms.Keys]::End)) {
-            $global:scrollTimer.Stop()
-            $global:scrollTimer.Start()
-        }
-    })
-    
-    # Add mouse move event handler to detect scrollbar dragging
-    $controls.ListView.Add_MouseMove({
+
+    # Add mouse capture changed event handler to detect scrollbar dragging
+    $controls.ListView.Add_MouseCaptureChanged({
         if ($global:commentsEnabled) {
-            $global:scrollTimer.Stop()
-            $global:scrollTimer.Start()
-        }
-    })
-    
-    # Add mouse up event handler to detect when scrollbar dragging ends
-    $controls.ListView.Add_MouseUp({
-        if ($global:commentsEnabled) {
-            $global:scrollTimer.Stop()
-            $global:scrollTimer.Start()
-        }
-    })
-    
-    # Add mouse down event handler to detect when scrollbar dragging starts
-    $controls.ListView.Add_MouseDown({
-        if ($global:commentsEnabled) {
+            # Enable the Update button when scrolling occurs
+            $controls.UpdateCommentsBtn.Enabled = $true
             $global:scrollTimer.Stop()
             $global:scrollTimer.Start()
         }
@@ -1070,7 +1051,7 @@ function BindHandlers {
             Write-Host "=== Manual Comments Loading Completed ===" -ForegroundColor Cyan
             
             $controls.UpdateCommentsBtn.Text = $originalText
-            $controls.UpdateCommentsBtn.Enabled = $true
+            $controls.UpdateCommentsBtn.Enabled = $false  # Disable after update
             $form.Cursor = [System.Windows.Forms.Cursors]::Default
             
             [System.Windows.Forms.Application]::DoEvents()
