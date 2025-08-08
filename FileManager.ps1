@@ -3,7 +3,6 @@ Add-Type -AssemblyName Microsoft.VisualBasic
 
 $global:fontSize = 14
 $global:fontFamily = "Segoe UI"
-$global:showFullName = $true
 $global:commentsEnabled = $false
 
 $form = New-Object Windows.Forms.Form
@@ -55,11 +54,7 @@ function CreateControls {
     $y = $gap
     $x = $gap
 
-    $controls.ToggleNameBtn = New-Object Windows.Forms.Button
-    $controls.ToggleNameBtn.Text = "Short name"
-    $form.Controls.Add($controls.ToggleNameBtn)
-    $controls.ToggleNameBtn.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+
 
     $btnDeleteW = [int](($btnW - $gap) / 2)
 
@@ -124,7 +119,7 @@ function CreateControls {
          $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
          $controls.UpdateCommentsBtn.Text = "Update"
          $controls.UpdateCommentsBtn.Enabled = $true
-         $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
+         $controls.UpdateCommentsBtn.Visible = $true
          $form.Controls.Add($controls.UpdateCommentsBtn)
          $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
          $y += $btnH + $gap
@@ -164,7 +159,7 @@ function CreateControls {
     $controls.ListView.Columns.Add("MB", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
     
-    if ($global:commentsEnabled -and -not $global:showFullName) {
+    if ($global:commentsEnabled) {
         $controls.ListView.Columns.Add("Comments", 500) | Out-Null
     }
 
@@ -210,8 +205,7 @@ function LayoutOnlyFonts {
     $y = $gap
     $x = $gap
 
-    $controls.ToggleNameBtn.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+
 
     $btnDeleteW = [int](($btnW - $gap) / 2)
     $controls.DeleteBtn.SetBounds($x, $y, $btnDeleteW, $btnH)
@@ -243,7 +237,6 @@ function LayoutOnlyFonts {
     $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
     $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
 
-    $controls.ToggleNameBtn.Font = $font
     $controls.DeleteBtn.Font = $font
     $controls.BinBtn.Font = $font
     $controls.SortNameRadio.Font = $font
@@ -289,14 +282,14 @@ function Update-InfoLabels {
 function Update-ListView {
     $controls.ListView.Items.Clear()
     
-    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    $showComments = $global:commentsEnabled
     
     foreach ($file in $global:filteredTable) {
-        $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
+        $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.UseItemStyleForSubItems = $false
         $item.SubItems.Add("$($file.SizeMB)")
-        $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
+        $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
         if ($showComments) {
@@ -338,14 +331,14 @@ function Update-ListViewPreserveScroll {
     
     $controls.ListView.Items.Clear()
     
-    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    $showComments = $global:commentsEnabled
     
     foreach ($file in $global:filteredTable) {
-        $displayName = if ($global:showFullName) { $file.OrigName } else { $file.Name }
+        $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.UseItemStyleForSubItems = $false
         $item.SubItems.Add("$($file.SizeMB)")
-        $displayDate = Format-ExtractedDate $file.DisplayDate $global:showFullName
+        $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
         if ($showComments) {
@@ -386,28 +379,18 @@ function Update-ListViewPreserveScroll {
 }
 
 function Update-ListViewTextColors {
-    $showComments = $global:commentsEnabled -and -not $global:showFullName
+    $showComments = $global:commentsEnabled
     
     foreach ($item in $controls.ListView.Items) {
         $fileIndex = $item.Index
         if ($fileIndex -lt $global:filteredTable.Count) {
             $file = $global:filteredTable[$fileIndex]
             
-            if ($global:showFullName) {
-                $item.Text = $file.OrigName
-                $item.ForeColor = [System.Drawing.Color]::Black
-            } else {
-                $item.Text = $file.Name
-                $item.ForeColor = [System.Drawing.Color]::Black
-            }
+            $item.Text = $file.Name
+            $item.ForeColor = [System.Drawing.Color]::Black
             
-            if ($global:showFullName) {
-                $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $true
-                $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
-            } else {
-                $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $false
-                $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
-            }
+            $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $true
+            $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
             
             $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
             
@@ -444,7 +427,7 @@ function Update-ListViewTextColors {
 }
 
 function Load-CommentsForVisibleItems {
-    if (-not ($global:commentsEnabled -and -not $global:showFullName)) {
+    if (-not $global:commentsEnabled) {
         return
     }
     
@@ -686,9 +669,7 @@ function Update-CommentsDisplay {
                         $file.CommentsLoaded = $true
                         Write-Host "Update-CommentsDisplay: Loaded comments = '$($file.Comments)'" -ForegroundColor Green
                         
-                        if (-not $global:showFullName) {
-                            Update-ListViewTextColors
-                        }
+                        Update-ListViewTextColors
                     } else {
                         Write-Host "Update-CommentsDisplay: Using cached comments = '$($file.Comments)'" -ForegroundColor Green
                     }
@@ -956,35 +937,7 @@ function BindHandlers {
             }
         }
     })
-    $controls.ToggleNameBtn.Add_Click({
-        $global:showFullName = -not $global:showFullName
-        if ($global:showFullName) {
-            $controls.ToggleNameBtn.Text = "Short name"
-        } else {
-            $controls.ToggleNameBtn.Text = "Full name"
-        }
-        
-        $controls.ListView.Columns.Clear()
-        $controls.ListView.Columns.Add("File Name", -1) | Out-Null
-        $controls.ListView.Columns.Add("MB", 100) | Out-Null
-        $controls.ListView.Columns.Add("Created", 100) | Out-Null
-        
-        if ($global:commentsEnabled -and -not $global:showFullName) {
-            $controls.ListView.Columns.Add("Comments", 500) | Out-Null
-        }
-        
-        Update-ListViewPreserveScroll
-        
-        if ($global:commentsEnabled) {
-            $controls.UpdateCommentsBtn.Visible = -not $global:showFullName
-        }
-        
-        if ($global:commentsEnabled -and -not $global:showFullName) {
-            Write-Host "=== Auto-loading comments on mode switch ===" -ForegroundColor Cyan
-            $controls.UpdateCommentsBtn.PerformClick()
-            Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
-        }
-    })
+
 
     if ($global:commentsEnabled) {
         $controls.SaveCommentsBtn.Add_Click({
@@ -1017,9 +970,7 @@ function BindHandlers {
                          $global:currentSelectedFile.Comments = $newComments
                          $global:currentSelectedFile.CommentsLoaded = $true
                          
-                         if (-not $global:showFullName) {
-                             Update-ListViewTextColors
-                         }
+                         Update-ListViewTextColors
                          
                          $controls.SaveCommentsBtn.Enabled = $false
                      } else {
@@ -1084,7 +1035,7 @@ $form.Add_Resize({
             $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
             $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
             
-            if (-not $global:showFullName -and $controls.ListView.Columns.Count -gt 3) {
+            if ($controls.ListView.Columns.Count -gt 3) {
                 $controls.ListView.Columns[3].Width = 500
             }
         } else {
@@ -1102,6 +1053,14 @@ $form.Add_Shown({
     Set-AllFonts $global:fontSize
     BindHandlers
     Get-FilesFromFolder
+    
+    # Auto-load comments for visible items on startup
+    if ($global:commentsEnabled) {
+        Write-Host "=== Auto-loading comments on startup ===" -ForegroundColor Cyan
+        Load-CommentsForVisibleItems
+        Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
+    }
+    
     $form.Activate()
 })
 
