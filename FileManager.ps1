@@ -972,6 +972,44 @@ function BindHandlers {
             $global:scrollTimer.Start()
         }
     })
+    
+    # Add key event handler for arrow keys and page up/down
+    $controls.ListView.Add_KeyDown({
+        param($sender, $e)
+        if ($global:commentsEnabled -and ($e.KeyCode -eq [System.Windows.Forms.Keys]::Up -or 
+            $e.KeyCode -eq [System.Windows.Forms.Keys]::Down -or 
+            $e.KeyCode -eq [System.Windows.Forms.Keys]::PageUp -or 
+            $e.KeyCode -eq [System.Windows.Forms.Keys]::PageDown -or
+            $e.KeyCode -eq [System.Windows.Forms.Keys]::Home -or
+            $e.KeyCode -eq [System.Windows.Forms.Keys]::End)) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
+    
+    # Add mouse move event handler to detect scrollbar dragging
+    $controls.ListView.Add_MouseMove({
+        if ($global:commentsEnabled) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
+    
+    # Add mouse up event handler to detect when scrollbar dragging ends
+    $controls.ListView.Add_MouseUp({
+        if ($global:commentsEnabled) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
+    
+    # Add mouse down event handler to detect when scrollbar dragging starts
+    $controls.ListView.Add_MouseDown({
+        if ($global:commentsEnabled) {
+            $global:scrollTimer.Stop()
+            $global:scrollTimer.Start()
+        }
+    })
 
 
     if ($global:commentsEnabled) {
