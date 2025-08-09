@@ -1,9 +1,18 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName Microsoft.VisualBasic
 
+$global:folderPath = "G:\My Drive\recordings"
 $global:fontSize = 14
 $global:fontFamily = "Segoe UI"
 $global:commentsEnabled = $false
+$global:fileTable = @()
+$global:filteredTable = @()
+$global:activeSortButton = $null
+$global:maxColumnWidths = @{ Name = 0; Date = 0; Comments = 0 }
+$global:currentSelectedFile = $null
+$global:originalCommentsText = ""
+$global:lastScrollTop = 0
+$global:scrollTimer = $null
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -713,13 +722,7 @@ function Update-CommentsDisplay {
     }
 }
 
-$global:folderPath = "G:\My Drive\recordings"
-$global:fileTable = @()
-$global:filteredTable = @()
-$global:activeSortButton = $null
-$global:maxColumnWidths = @{ Name = 0; Date = 0; Comments = 0 }
-$global:currentSelectedFile = $null
-$global:originalCommentsText = ""
+ 
 
 function Show-TrayNotification {
     param(
