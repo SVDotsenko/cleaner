@@ -963,46 +963,9 @@ function BindHandlers {
         $global:scrollTimer.Stop()
     })
 
-    # Create a timer for delayed drag end check
-    if (-not $global:dragEndTimer) {
-        $global:dragEndTimer = New-Object System.Windows.Forms.Timer
-        $global:dragEndTimer.Interval = 150  # 150ms delay
-        $global:dragEndTimer.Add_Tick({
-            $global:dragEndTimer.Stop()
-            
-            Write-Host "DragEndTimer - Checking scroll position after drag" -ForegroundColor Magenta
-            
-            # Check if scroll position changed during dragging
-            $currentTop = $controls.ListView.TopItem
-            if ($currentTop -and $global:scrollPositionBeforeDrag -ge 0) {
-                $currentPosition = $currentTop.Index
-                Write-Host "DragEndTimer - Position before drag: $global:scrollPositionBeforeDrag, Current position: $currentPosition" -ForegroundColor Cyan
-                
-                if ($currentPosition -ne $global:scrollPositionBeforeDrag) {
-                    Write-Host "DragEndTimer - Scroll position changed, starting update" -ForegroundColor Green
-                    # Enable the Update button when scrolling ends
-                    $controls.UpdateCommentsBtn.Enabled = $true
-                    $global:scrollTimer.Stop()
-                    $global:scrollTimer.Start()
-                } else {
-                    Write-Host "DragEndTimer - Scroll position unchanged, no update needed" -ForegroundColor Gray
-                }
-            } else {
-                Write-Host "DragEndTimer - No TopItem or invalid position, checking anyway" -ForegroundColor Yellow
-                # Even if we can't get the current position, try to update if we were dragging
-                $controls.UpdateCommentsBtn.Enabled = $true
-                $global:scrollTimer.Stop()
-                $global:scrollTimer.Start()
-            }
-            
-            # Reset the saved position
-            $global:scrollPositionBeforeDrag = -1
-        })
-    }
-
     # Add mouse wheel event handler for scroll detection
     $controls.ListView.Add_MouseWheel({
-        if ($global:commentsEnabled -and -not $global:isDragging) {
+        if ($global:commentsEnabled) {
             # Enable the Update button when scrolling occurs
             $controls.UpdateCommentsBtn.Enabled = $true
             $global:scrollTimer.Stop()
