@@ -731,30 +731,55 @@ function Show-TrayNotification {
         [int]$Duration = 3000,
         [string]$Type = "Info"
     )
-    
+
     # Log to console
     Write-Host "[$Type] $Title`: $Message"
-    
+
     try {
         Add-Type -AssemblyName System.Windows.Forms
         $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
-        
+
         # Set icon based on type
         switch ($Type) {
-            "Error" { 
+            "Error" {
                 $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error
                 $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Error
             }
-            default { 
+            default {
                 $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
                 $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
             }
         }
-        
+
         $notifyIcon.Visible = $true
         $notifyIcon.ShowBalloonTip($Duration, $Title, $Message, $toolTipIcon)
-        Start-Sleep -Milliseconds $Duration
-        $notifyIcon.Dispose()
+
+        # Use a timer to dispose the notification asynchronously instead of blocking
+        $timer = New-Object System.Windows.Forms.Timer
+        $timer.Interval = $Duration
+
+        # Capture variables in closure to avoid scope issues
+        $localNotifyIcon = $notifyIcon
+        $localTimer = $timer
+
+        $timer.Add_Tick({
+            try {
+                if ($null -ne $localNotifyIcon -and -not $localNotifyIcon.IsDisposed) {
+                    $localNotifyIcon.Dispose()
+                }
+            } catch {
+                # Ignore disposal errors
+            }
+            try {
+                if ($null -ne $localTimer -and -not $localTimer.IsDisposed) {
+                    $localTimer.Dispose()
+                }
+            } catch {
+                # Ignore disposal errors
+            }
+        })
+        $timer.Start()
+
     } catch {
         $messageBoxIcon = if ($Type -eq "Error") { 'Error' } else { 'Information' }
         [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', $messageBoxIcon) | Out-Null
