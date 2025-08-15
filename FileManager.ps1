@@ -594,6 +594,13 @@ function Get-DisplayNameFromFileName($fileName) {
         }
     }
     
+    # Special handling for M4A files that don't start with a letter
+    if ($extension -eq ".m4a" -and $nameWithoutExt.Length -gt 0 -and -not [char]::IsLetter($nameWithoutExt[0])) {
+        if ($nameWithoutExt -match "(.+?)_") {
+            return $matches[1]
+        }
+    }
+    
     # Original logic for other cases
     if ($nameWithoutExt.Length -gt 0 -and [char]::IsLetter($nameWithoutExt[0])) {
         $result = ""
