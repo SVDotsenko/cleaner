@@ -581,6 +581,20 @@ function Format-ExtractedDate($date, $showTime = $false) {
 
 function Get-DisplayNameFromFileName($fileName) {
     $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
+    $extension = [System.IO.Path]::GetExtension($fileName).ToLower()
+    
+    # Special handling for MP3 files with parentheses pattern
+    if ($extension -eq ".mp3" -and $nameWithoutExt -match "(.+?)\((.+?)\)") {
+        $beforeParentheses = $matches[1]
+        $insideParentheses = $matches[2]
+        
+        # If content inside parentheses equals content before parentheses, return only the content inside
+        if ($beforeParentheses -eq $insideParentheses) {
+            return $insideParentheses
+        }
+    }
+    
+    # Original logic for other cases
     if ($nameWithoutExt.Length -gt 0 -and [char]::IsLetter($nameWithoutExt[0])) {
         $result = ""
         foreach ($c in $nameWithoutExt.ToCharArray()) {
