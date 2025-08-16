@@ -138,7 +138,7 @@ function CreateControls {
          $controls.YearFilterListView = New-Object Windows.Forms.ListView
          $controls.YearFilterListView.View = 'Details'
          $controls.YearFilterListView.FullRowSelect = $true
-         $controls.YearFilterListView.MultiSelect = $true
+         $controls.YearFilterListView.MultiSelect = $false  # Отключаем множественное выделение
          $controls.YearFilterListView.Scrollable = $true
          $controls.YearFilterListView.GridLines = $true
          $form.Controls.Add($controls.YearFilterListView)
@@ -446,6 +446,7 @@ function Update-YearFilterList {
     
     # Select only the latest (maximum) year by default
     if ($controls.YearFilterListView.Items.Count -gt 0) {
+        # Просто выделяем первый элемент (максимальный год)
         $controls.YearFilterListView.Items[0].Selected = $true
         $global:selectedYears = @([int]$controls.YearFilterListView.Items[0].Text)
     } else {
@@ -545,59 +546,79 @@ function Load-CommentsForVisibleItems {
         return
     }
     
-    $topItemIndex = -1
+    # Ensure filtered table exists
+    if (-not $global:filteredTable) { $global:filteredTable = @() }
+    $totalCount = 0
+    try { $totalCount = $global:filteredTable.Count } catch { $totalCount = 0 }
+
+    # Nothing to do if there are no files or no rows in the ListView
+    if ($totalCount -le 0 -or $controls.ListView.Items.Count -le 0) {
+        return
+    }
+
+    # Determine top item index and clamp to valid range
+    $topItemIndex = 0
     if ($null -ne $controls.ListView.TopItem) {
         $topItemIndex = $controls.ListView.TopItem.Index
     }
-    
+    $topItemIndex = [math]::Max(0, [math]::Min($topItemIndex, $totalCount - 1))
+
+    # Determine visible range, always at least 1 item
     $visibleCount = $controls.ListView.VisibleCount
+    if ($visibleCount -le 0) { $visibleCount = 1 }
     $startIndex = $topItemIndex
-    $endIndex = [math]::Min($global:filteredTable.Count - 1, $topItemIndex + $visibleCount - 1)
-    
-    $endIndex = [math]::Min($global:filteredTable.Count - 1, $endIndex + 25)
-    
+    $endIndex = [math]::Min($totalCount - 1, $topItemIndex + $visibleCount - 1)
+    $endIndex = [math]::Min($totalCount - 1, $endIndex + 25)  # small buffer
+
     Write-Host "=== Loading Comments for Visible Items ===" -ForegroundColor Cyan
     Write-Host "Top item index: $topItemIndex, Visible count: $visibleCount" -ForegroundColor Yellow
     Write-Host "Range: $startIndex to $endIndex (with buffer)" -ForegroundColor Yellow
-    Write-Host "Total files in filtered table: $($global:filteredTable.Count)" -ForegroundColor Yellow
-    
+    Write-Host "Total files in filtered table: $totalCount" -ForegroundColor Yellow
+
     $loadedCount = 0
     $skippedCount = 0
+    $itemsCount = $controls.ListView.Items.Count
+
     for ($i = $startIndex; $i -le $endIndex; $i++) {
-        if ($i -lt $global:filteredTable.Count) {
+        if ($i -ge 0 -and $i -lt $totalCount) {
             $file = $global:filteredTable[$i]
-            
+            if ($null -eq $file) { continue }
+
             if (-not $file.CommentsLoaded) {
-                if ($i -lt $controls.ListView.Items.Count) {
+                if ($i -lt $itemsCount) {
                     $item = $controls.ListView.Items[$i]
-                    $item.BackColor = [System.Drawing.Color]::LightGray
-                    foreach ($subItem in $item.SubItems) {
-                        $subItem.BackColor = [System.Drawing.Color]::LightGray
+                    if ($null -ne $item) {
+                        $item.BackColor = [System.Drawing.Color]::LightGray
+                        foreach ($subItem in $item.SubItems) {
+                            $subItem.BackColor = [System.Drawing.Color]::LightGray
+                        }
+                        [System.Windows.Forms.Application]::DoEvents()
                     }
-                    [System.Windows.Forms.Application]::DoEvents()
                 }
-                
+
                 Write-Host "Loading comments for: $($file.Name) (index $i)" -ForegroundColor Green
                 $file.Comments = Read-FileComments $file.Path
                 $file.CommentsLoaded = $true
                 $loadedCount++
 
-                if ($i -lt $controls.ListView.Items.Count) {
+                if ($i -lt $itemsCount) {
                     $item = $controls.ListView.Items[$i]
-                    if ($item.SubItems.Count -gt 3) {
+                    if ($null -ne $item -and $item.SubItems.Count -gt 3) {
                         $item.SubItems[3].Text = $file.Comments
                         $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
                     }
                     [System.Windows.Forms.Application]::DoEvents()
                 }
 
-                if ($i -lt $controls.ListView.Items.Count) {
+                if ($i -lt $itemsCount) {
                     $item = $controls.ListView.Items[$i]
-                    $item.BackColor = [System.Drawing.Color]::White
-                    foreach ($subItem in $item.SubItems) {
-                        $subItem.BackColor = [System.Drawing.Color]::White
+                    if ($null -ne $item) {
+                        $item.BackColor = [System.Drawing.Color]::White
+                        foreach ($subItem in $item.SubItems) {
+                            $subItem.BackColor = [System.Drawing.Color]::White
+                        }
+                        [System.Windows.Forms.Application]::DoEvents()
                     }
-                    [System.Windows.Forms.Application]::DoEvents()
                 }
             } else {
                 Write-Host "Skipping already loaded: $($file.Name) (index $i)" -ForegroundColor Gray
@@ -1227,15 +1248,25 @@ function BindHandlers {
          # Add year filter change handler
          if ($global:commentsEnabled) {
              $controls.YearFilterListView.Add_SelectedIndexChanged({
-                 # Update selected years array
-                 $global:selectedYears = @()
-                 foreach ($item in $controls.YearFilterListView.SelectedItems) {
-                     $global:selectedYears += [int]$item.Text
-                 }
-                 
+                 # Guard: может не быть выделения в момент события
+                 if ($controls.YearFilterListView.SelectedItems.Count -eq 0) { return }
+
+                 # Update selected years array (теперь всегда только один элемент)
+                 $selectedText = $controls.YearFilterListView.SelectedItems[0].Text
+                 if ([string]::IsNullOrWhiteSpace($selectedText)) { return }
+                 $global:selectedYears = @([int]$selectedText)
+
                  # Apply filter and update main list
                  Apply-YearFilter
                  Update-ListView
+
+                 # Auto-load comments for visible items after year filter change
+                 if ($controls.ListView.Items.Count -gt 0) {
+                     $controls.UpdateCommentsBtn.Enabled = $true
+                     $controls.UpdateCommentsBtn.PerformClick()
+                 } else {
+                     $controls.UpdateCommentsBtn.Enabled = $false
+                 }
              })
          }
      }
