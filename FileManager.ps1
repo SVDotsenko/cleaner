@@ -13,6 +13,7 @@ $global:currentSelectedFile = $null
 $global:originalCommentsText = ""
 $global:lastScrollTop = 0
 $global:scrollTimer = $null
+$global:selectedYears = @()  # Array of selected years for filtering
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -132,6 +133,18 @@ function CreateControls {
          $form.Controls.Add($controls.UpdateCommentsBtn)
          $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
          $y += $btnH + $gap
+         
+         # Add Year Filter ListView
+         $controls.YearFilterListView = New-Object Windows.Forms.ListView
+         $controls.YearFilterListView.View = 'Details'
+         $controls.YearFilterListView.FullRowSelect = $true
+         $controls.YearFilterListView.MultiSelect = $true
+         $controls.YearFilterListView.Scrollable = $true
+         $controls.YearFilterListView.GridLines = $true
+         $form.Controls.Add($controls.YearFilterListView)
+         $controls.YearFilterListView.SetBounds($x, $y, $btnW, 100)  # Temporary height, will be adjusted in LayoutOnlyFonts
+         $controls.YearFilterListView.Columns.Add("Year", -1) | Out-Null
+         $y += 100 + $gap
      }
 
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
@@ -238,8 +251,23 @@ function LayoutOnlyFonts {
         $y += 150 + $gap
         $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
         $y += $btnH + $gap
-        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-    }
+                 $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+         $y += $btnH + $gap
+         
+         # Update Year Filter ListView position and height to fill remaining space
+         # Calculate the exact position where YearFilterListView should start
+         # Use the same calculation as in Add_Resize for consistency
+         $yearFilterStartY = $y
+         
+         # Only proceed if form has valid dimensions
+         if ($form.ClientSize.Height -gt 0) {
+             $remainingHeight = $form.ClientSize.Height - $yearFilterStartY - $controls.StatusStrip.Height - $gap
+             
+             if ($remainingHeight -gt 50) {  # Minimum height check
+                 $controls.YearFilterListView.SetBounds($x, $yearFilterStartY, $btnW, $remainingHeight)
+             }
+         }
+     }
 
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
@@ -252,11 +280,13 @@ function LayoutOnlyFonts {
     $controls.SortSizeRadio.Font = $font
     $controls.SortCreatedRadio.Font = $font
     $controls.SelectFolder.Font = $font
-    if ($global:commentsEnabled) {
-        $controls.CommentsBox.Font = $font
-        $controls.SaveCommentsBtn.Font = $font
-        $controls.UpdateCommentsBtn.Font = $font
-    }
+         if ($global:commentsEnabled) {
+         $controls.CommentsBox.Font = $font
+         $controls.SaveCommentsBtn.Font = $font
+         $controls.UpdateCommentsBtn.Font = $font
+
+         $controls.YearFilterListView.Font = $font
+     }
     $controls.StatusLabel.Font = $font
 }
 
@@ -284,7 +314,11 @@ function Update-InfoLabels {
             $sum = ($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum
             $sum = [math]::Round($sum, 2)
         }
-        $controls.StatusLabel.Text = "Total files: $count | Total size: $sum MB"
+        $yearInfo = ""
+        if ($global:commentsEnabled -and $global:selectedYears.Count -gt 0 -and $global:selectedYears.Count -lt $global:fileTable.Count) {
+            $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
+        }
+        $controls.StatusLabel.Text = "Total files: $count | Total size: $sum MB$yearInfo"
     }
 }
 
@@ -385,6 +419,64 @@ function Update-ListViewPreserveScroll {
     $controls.BinBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
     Update-InfoLabels
     Update-ListViewTextColors
+}
+
+function Update-YearFilterList {
+    if (-not $global:commentsEnabled) {
+        return
+    }
+    
+    $controls.YearFilterListView.Items.Clear()
+    
+    # Get unique years from file table, sorted in descending order
+    $uniqueYears = $global:fileTable | 
+        Where-Object { $_.DisplayDate -ne $null } | 
+        ForEach-Object { $_.DisplayDate.Year } | 
+        Sort-Object -Unique -Descending
+    
+    if ($uniqueYears.Count -eq 0) {
+        return
+    }
+    
+    # Add years to ListView
+    foreach ($year in $uniqueYears) {
+        $item = New-Object Windows.Forms.ListViewItem("$year")
+        $controls.YearFilterListView.Items.Add($item) | Out-Null
+    }
+    
+    # Select all years by default
+    foreach ($item in $controls.YearFilterListView.Items) {
+        $item.Selected = $true
+    }
+    
+    # Update global selected years
+    $global:selectedYears = $uniqueYears
+    
+    # Auto-resize Year column to fill available width
+    if ($controls.YearFilterListView.Columns.Count -gt 0) {
+        # Calculate available width for Year column (similar to comments column logic)
+        $totalWidth = $controls.YearFilterListView.Width
+        $scrollbarWidth = 20  # Account for scrollbar width
+        $padding = 5          # Some padding
+        $availableWidth = $totalWidth - $scrollbarWidth - $padding
+        
+        if ($availableWidth -gt 50) {  # Minimum width check
+            $controls.YearFilterListView.Columns[0].Width = $availableWidth
+        }
+    }
+}
+
+function Apply-YearFilter {
+    if ($global:selectedYears.Count -eq 0) {
+        $global:filteredTable = $global:fileTable
+        return
+    }
+    
+    $global:filteredTable = $global:fileTable | 
+        Where-Object { 
+            $_.DisplayDate -ne $null -and 
+            $global:selectedYears -contains $_.DisplayDate.Year 
+        }
 }
 
 function Update-ListViewTextColors {
@@ -874,29 +966,30 @@ function Get-FilesFromFolder {
         
         $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
-        Invoke-Search
+        
+        # Update year filter and apply it
+        if ($global:commentsEnabled) {
+            Update-YearFilterList
+            Apply-YearFilter
+        } else {
+            $global:filteredTable = $global:fileTable
+        }
+        
+        Update-ListView
     } else {
         $global:fileTable = @()
+        $global:filteredTable = @()
         $controls.SortCreatedRadio.Checked = $true
-        Invoke-Search
+        
+        if ($global:commentsEnabled) {
+            Update-YearFilterList
+        }
+        
+        Update-ListView
     }
 }
 
-function Invoke-Search {
-    $pattern = $controls.SearchBox.Text
-    if ([string]::IsNullOrWhiteSpace($pattern)) {
-        $global:filteredTable = $global:fileTable
-    } else {
-        try {
-            $regex = New-Object System.Text.RegularExpressions.Regex($pattern, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
-            $global:filteredTable = $global:fileTable | Where-Object { $regex.IsMatch([System.IO.Path]::GetFileNameWithoutExtension($_.Name)) }
-        } catch {
-            $p = $pattern.ToLower()
-            $global:filteredTable = $global:fileTable | Where-Object { $_.Name.ToLower() -like "*$p*" }
-        }
-    }
-    Update-ListView
-}
+
 
 function Move-FileToRecycleBin($filePath) {
     try {
@@ -1127,10 +1220,25 @@ function BindHandlers {
         })
     }
     
-    $controls.AboutLink.Add_Click({
-        Start-Process "https://github.com/SVDotsenko/cleaner/blob/main/readme.md"
-    })
-}
+             $controls.AboutLink.Add_Click({
+             Start-Process "https://github.com/SVDotsenko/cleaner/blob/main/readme.md"
+         })
+         
+         # Add year filter change handler
+         if ($global:commentsEnabled) {
+             $controls.YearFilterListView.Add_SelectedIndexChanged({
+                 # Update selected years array
+                 $global:selectedYears = @()
+                 foreach ($item in $controls.YearFilterListView.SelectedItems) {
+                     $global:selectedYears += [int]$item.Text
+                 }
+                 
+                 # Apply filter and update main list
+                 Apply-YearFilter
+                 Update-ListView
+             })
+         }
+     }
 
 $form.Add_Resize({
     if ($null -ne $controls.ListView) {
@@ -1144,7 +1252,7 @@ $form.Add_Resize({
         if ($global:commentsEnabled) {
             $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
             $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-            $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+            $controls.ListView.Columns[2].Width = 100  # Fixed width for Created column
             
             if ($controls.ListView.Columns.Count -gt 3) {
                 # Calculate available width for comments column with scrollbar consideration
@@ -1160,6 +1268,46 @@ $form.Add_Resize({
                 
                 if ($availableWidth -gt 50) { # Minimum width check
                     $controls.ListView.Columns[3].Width = $availableWidth
+                }
+            }
+            
+            # Update Year Filter ListView height to fill remaining space
+            # Calculate the exact position where YearFilterListView should start
+            $gap = [int]($global:fontSize * 0.8)
+            $btnH = [int]($global:fontSize * 2.2)
+            $btnW = 160 + $global:fontSize*2
+            
+            # Calculate Y position: gap + 5 buttons + CommentsBox height + 2 buttons
+            # More precise calculation: gap + (btnH + gap) * 5 + 150 + (btnH + gap) * 2
+            $yearFilterStartY = $gap + ($btnH + $gap) * 5 + 150 + ($btnH + $gap) * 2
+            
+            # Only proceed if form has valid dimensions
+            if ($form.ClientSize.Height -gt 0) {
+                $remainingHeight = $form.ClientSize.Height - $yearFilterStartY - $controls.StatusStrip.Height - $gap
+                
+                # Debug information
+                Write-Host "=== Year Filter Height Calculation ===" -ForegroundColor Yellow
+                Write-Host "Form Client Height: $($form.ClientSize.Height)" -ForegroundColor Cyan
+                Write-Host "Year Filter Start Y: $yearFilterStartY" -ForegroundColor Cyan
+                Write-Host "Status Strip Height: $($controls.StatusStrip.Height)" -ForegroundColor Cyan
+                Write-Host "Gap: $gap" -ForegroundColor Cyan
+                Write-Host "Remaining Height: $remainingHeight" -ForegroundColor Cyan
+                Write-Host "=====================================" -ForegroundColor Yellow
+                
+                if ($remainingHeight -gt 50) {
+                $controls.YearFilterListView.SetBounds($controls.YearFilterListView.Left, $yearFilterStartY, $controls.YearFilterListView.Width, $remainingHeight)
+                
+                # Update Year column width to fill available space
+                if ($controls.YearFilterListView.Columns.Count -gt 0) {
+                    $totalWidth = $controls.YearFilterListView.Width
+                    $scrollbarWidth = 20  # Account for scrollbar width
+                    $padding = 5          # Some padding
+                    $availableWidth = $totalWidth - $scrollbarWidth - $padding
+                    
+                    if ($availableWidth -gt 50) {
+                        $controls.YearFilterListView.Columns[0].Width = $availableWidth
+                                         }
+                 }
                 }
             }
         } else {
@@ -1190,9 +1338,15 @@ $form.Add_Shown({
         Write-Host "=== Auto-loading comments on startup ===" -ForegroundColor Cyan
         $controls.UpdateCommentsBtn.PerformClick()
         Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
-    }
-    
-    $form.Activate()
+        
+                 # Initialize year filter
+         Update-YearFilterList
+         
+         # Ensure proper layout after form is fully shown
+         LayoutOnlyFonts
+     }
+     
+     $form.Activate()
 })
 
 [void]$form.ShowDialog()
