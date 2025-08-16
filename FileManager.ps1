@@ -444,13 +444,13 @@ function Update-YearFilterList {
         $controls.YearFilterListView.Items.Add($item) | Out-Null
     }
     
-    # Select all years by default
-    foreach ($item in $controls.YearFilterListView.Items) {
-        $item.Selected = $true
+    # Select only the latest (maximum) year by default
+    if ($controls.YearFilterListView.Items.Count -gt 0) {
+        $controls.YearFilterListView.Items[0].Selected = $true
+        $global:selectedYears = @([int]$controls.YearFilterListView.Items[0].Text)
+    } else {
+        $global:selectedYears = @()
     }
-    
-    # Update global selected years
-    $global:selectedYears = $uniqueYears
     
     # Auto-resize Year column to fill available width
     if ($controls.YearFilterListView.Columns.Count -gt 0) {
