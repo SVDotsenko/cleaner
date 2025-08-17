@@ -635,8 +635,7 @@ function Load-CommentsForVisibleItems {
             }
         }
     }
-    Write-Host "Loaded: $loadedCount files, Skipped: $skippedCount files" -ForegroundColor Cyan
-    Write-Host "=== End Loading Comments ===" -ForegroundColor Cyan
+
     
     if ($loadedCount -gt 0) {
         Update-ListViewTextColors
@@ -667,8 +666,7 @@ function Start-BackgroundCommentLoading {
         return
     }
     
-    Write-Host "=== Background: Starting Comment Loading ===" -ForegroundColor Cyan
-    Write-Host "Background: Unloaded comments: $unloadedCount" -ForegroundColor Yellow
+
     
     # Collect indexes of files that need comments loaded from ALL files
     $global:backgroundFileIndexes = @()
@@ -741,8 +739,6 @@ function Start-BackgroundCommentLoading {
             $global:backgroundCurrentIndex++
         } else {
             # All files processed
-            Write-Host "Background: Comment loading completed successfully" -ForegroundColor Green
-            
             # Stop timer and reset state
             $global:backgroundTimer.Stop()
             $global:backgroundTimer.Dispose()
@@ -750,8 +746,6 @@ function Start-BackgroundCommentLoading {
             $global:isBackgroundLoading = $false
             $global:backgroundFileIndexes = @()
             $global:backgroundCurrentIndex = 0
-            
-            Write-Host "Background: Timer stopped and state reset" -ForegroundColor Green
             
             # Re-enable Update button
             if ($controls.UpdateCommentsBtn) {
@@ -780,7 +774,6 @@ function Start-BackgroundCommentLoading {
 
 function Stop-BackgroundCommentLoading {
     if ($global:backgroundTimer -and $global:isBackgroundLoading) {
-        Write-Host "=== Background: Stopping Comment Loading ===" -ForegroundColor Yellow
         $global:backgroundTimer.Stop()
         $global:backgroundTimer.Dispose()
         $global:backgroundTimer = $null
@@ -1481,14 +1474,7 @@ $form.Add_Resize({
             if ($form.ClientSize.Height -gt 0) {
                 $remainingHeight = $form.ClientSize.Height - $yearFilterStartY - $controls.StatusStrip.Height - $gap
                 
-                # Debug information
-                Write-Host "=== Year Filter Height Calculation ===" -ForegroundColor Yellow
-                Write-Host "Form Client Height: $($form.ClientSize.Height)" -ForegroundColor Cyan
-                Write-Host "Year Filter Start Y: $yearFilterStartY" -ForegroundColor Cyan
-                Write-Host "Status Strip Height: $($controls.StatusStrip.Height)" -ForegroundColor Cyan
-                Write-Host "Gap: $gap" -ForegroundColor Cyan
-                Write-Host "Remaining Height: $remainingHeight" -ForegroundColor Cyan
-                Write-Host "=====================================" -ForegroundColor Yellow
+
                 
                 if ($remainingHeight -gt 50) {
                 $controls.YearFilterListView.SetBounds($controls.YearFilterListView.Left, $yearFilterStartY, $controls.YearFilterListView.Width, $remainingHeight)
@@ -1531,9 +1517,7 @@ $form.Add_Shown({
     
     # Auto-load comments for visible items on startup
     if ($global:commentsEnabled) {
-        Write-Host "=== Auto-loading comments on startup ===" -ForegroundColor Cyan
-        $controls.UpdateCommentsBtn.PerformClick()
-        Write-Host "=== Auto-loading completed ===" -ForegroundColor Cyan
+                $controls.UpdateCommentsBtn.PerformClick()
         
                  # Initialize year filter
          Update-YearFilterList
@@ -1543,11 +1527,11 @@ $form.Add_Shown({
      }
      
      $form.Activate()
-})
-
-# Add form closing event to stop background loading
-$form.Add_FormClosing({
-    Stop-BackgroundCommentLoading
-})
-
-[void]$form.ShowDialog()
+ })
+ 
+ # Add form closing event to stop background loading
+ $form.Add_FormClosing({
+     Stop-BackgroundCommentLoading
+ })
+ 
+ [void]$form.ShowDialog()
