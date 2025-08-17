@@ -14,6 +14,10 @@ $global:originalCommentsText = ""
 $global:lastScrollTop = 0
 $global:scrollTimer = $null
 $global:selectedYears = @()  # Array of selected years for filtering
+$global:backgroundTimer = $null  # Timer for async comment loading
+$global:isBackgroundLoading = $false  # Flag to track background loading state
+$global:backgroundFileIndexes = @()  # Array of file indexes to process
+$global:backgroundCurrentIndex = 0  # Current index being processed
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -542,7 +546,10 @@ function Update-ListViewTextColors {
 }
 
 function Load-CommentsForVisibleItems {
+    Write-Host "=== Load-CommentsForVisibleItems called ===" -ForegroundColor Blue
+    
     if (-not $global:commentsEnabled) {
+        Write-Host "Comments not enabled, returning" -ForegroundColor Red
         return
     }
     
@@ -550,6 +557,8 @@ function Load-CommentsForVisibleItems {
     if (-not $global:filteredTable) { $global:filteredTable = @() }
     $totalCount = 0
     try { $totalCount = $global:filteredTable.Count } catch { $totalCount = 0 }
+    
+    Write-Host "Total count: $totalCount" -ForegroundColor Yellow
 
     # Nothing to do if there are no files or no rows in the ListView
     if ($totalCount -le 0 -or $controls.ListView.Items.Count -le 0) {
@@ -633,9 +642,161 @@ function Load-CommentsForVisibleItems {
         Update-ListViewTextColors
     }
     
-    # Disable the Update button after loading is completed
-    if ($global:commentsEnabled -and $controls.UpdateCommentsBtn) {
+    # Start background loading of all remaining comments
+    Write-Host "Calling Start-BackgroundCommentLoading..." -ForegroundColor Blue
+    Start-BackgroundCommentLoading
+    Write-Host "=== Load-CommentsForVisibleItems completed ===" -ForegroundColor Blue
+}
+
+function Start-BackgroundCommentLoading {
+    Write-Host "=== Start-BackgroundCommentLoading called ===" -ForegroundColor Magenta
+    Write-Host "Comments enabled: $global:commentsEnabled" -ForegroundColor Yellow
+    Write-Host "Already loading: $global:isBackgroundLoading" -ForegroundColor Yellow
+    
+    if (-not $global:commentsEnabled -or $global:isBackgroundLoading) {
+        Write-Host "Early return - comments disabled or already loading" -ForegroundColor Red
+        return
+    }
+    
+    # Get count of unloaded comments from ALL files (not just filtered)
+    $unloadedCount = ($global:fileTable | Where-Object { -not $_.CommentsLoaded }).Count
+    Write-Host "Unloaded comments count: $unloadedCount" -ForegroundColor Yellow
+    
+    if ($unloadedCount -eq 0) {
+        Write-Host "No unloaded comments, returning" -ForegroundColor Red
+        return
+    }
+    
+    Write-Host "=== Starting Background Comment Loading ===" -ForegroundColor Cyan
+    Write-Host "Unloaded comments: $unloadedCount" -ForegroundColor Yellow
+    
+    # Collect indexes of files that need comments loaded from ALL files
+    $global:backgroundFileIndexes = @()
+    for ($i = 0; $i -lt $global:fileTable.Count; $i++) {
+        $file = $global:fileTable[$i]
+        if ($null -ne $file -and -not $file.CommentsLoaded) {
+            $global:backgroundFileIndexes += $i
+        }
+    }
+    
+    $global:backgroundCurrentIndex = 0
+    
+         # Create and configure timer
+     $global:backgroundTimer = New-Object System.Windows.Forms.Timer
+     $global:backgroundTimer.Interval = 100  # 100ms between files for better UI responsiveness
+    $global:backgroundTimer.Add_Tick({
+        Write-Host "Timer tick: current=$global:backgroundCurrentIndex, total=$($global:backgroundFileIndexes.Count)" -ForegroundColor Green
+        
+        if ($global:backgroundCurrentIndex -lt $global:backgroundFileIndexes.Count) {
+            $fileIndex = $global:backgroundFileIndexes[$global:backgroundCurrentIndex]
+            $file = $global:fileTable[$fileIndex]
+            
+            Write-Host "Processing file: $($file.Name)" -ForegroundColor Cyan
+            
+            if ($null -ne $file -and -not $file.CommentsLoaded) {
+                # Load comment using inline function to avoid scope issues
+                try {
+                    $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
+                    $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+                    
+                    if (Test-Path $dllPath) {
+                        Add-Type -Path $dllPath
+                        $tagFile = [TagLib.File]::Create($file.Path)
+                        
+                        if ($tagFile) {
+                            $tags = $tagFile.Tag
+                            if ($tags) {
+                                $file.Comments = $tags.Comment
+                            } else {
+                                $file.Comments = ""
+                            }
+                            $tagFile.Dispose()
+                        } else {
+                            $file.Comments = ""
+                        }
+                    } else {
+                        $file.Comments = ""
+                    }
+                } catch {
+                    $file.Comments = ""
+                }
+                
+                $file.CommentsLoaded = $true
+                
+                # Update progress
+                $loadedCount = $global:backgroundCurrentIndex + 1
+                $totalCount = $global:backgroundFileIndexes.Count
+                $progress = [math]::Round(($loadedCount / $totalCount) * 100)
+                
+                                                 # Update status with progress
+                $yearInfo = ""
+                if ($global:selectedYears.Count -gt 0 -and $global:selectedYears.Count -lt $global:fileTable.Count) {
+                    $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
+                }
+                
+                $controls.StatusLabel.Text = "Total files: $($global:filteredTable.Count) | Total size: $([math]::Round(($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum, 2)) MB$yearInfo | Loading ALL comments: $loadedCount of $totalCount files ($progress%)"
+                 
+                 # Force UI update
+                 [System.Windows.Forms.Application]::DoEvents()
+            }
+            
+            $global:backgroundCurrentIndex++
+        } else {
+            # All files processed
+            Write-Host "Background comment loading completed successfully" -ForegroundColor Green
+            
+            # Stop timer and reset state
+            $global:backgroundTimer.Stop()
+            $global:backgroundTimer.Dispose()
+            $global:backgroundTimer = $null
+            $global:isBackgroundLoading = $false
+            $global:backgroundFileIndexes = @()
+            $global:backgroundCurrentIndex = 0
+            
+            Write-Host "Timer stopped and state reset" -ForegroundColor Green
+            
+            # Re-enable Update button
+            if ($controls.UpdateCommentsBtn) {
+                $controls.UpdateCommentsBtn.Enabled = $true
+            }
+            
+            # Update final status
+            Update-InfoLabels
+        }
+    })
+    
+    # Start background loading
+    $global:isBackgroundLoading = $true
+    $global:backgroundTimer.Start()
+    
+    Write-Host "Timer started with interval: $($global:backgroundTimer.Interval)ms" -ForegroundColor Green
+    Write-Host "Background loading state: $global:isBackgroundLoading" -ForegroundColor Green
+    
+    # Disable Update button during background loading
+    if ($controls.UpdateCommentsBtn) {
         $controls.UpdateCommentsBtn.Enabled = $false
+    }
+    
+    Write-Host "=== Start-BackgroundCommentLoading completed ===" -ForegroundColor Magenta
+}
+
+function Stop-BackgroundCommentLoading {
+    if ($global:backgroundTimer -and $global:isBackgroundLoading) {
+        Write-Host "=== Stopping Background Comment Loading ===" -ForegroundColor Yellow
+        $global:backgroundTimer.Stop()
+        $global:backgroundTimer.Dispose()
+        $global:backgroundTimer = $null
+        $global:isBackgroundLoading = $false
+        $global:backgroundFileIndexes = @()
+        $global:backgroundCurrentIndex = 0
+        
+        # Re-enable Update button
+        if ($controls.UpdateCommentsBtn) {
+            $controls.UpdateCommentsBtn.Enabled = $true
+        }
+        
+        # Update final status
+        Update-InfoLabels
     }
 }
 
@@ -960,6 +1121,9 @@ function Rename-CallRecordingFiles {
 }
 
 function Get-FilesFromFolder {
+    # Stop any ongoing background comment loading
+    Stop-BackgroundCommentLoading
+    
     Rename-CallRecordingFiles
     $global:fileTable = @()
     if (Test-Path $global:folderPath) {
@@ -1256,6 +1420,9 @@ function BindHandlers {
                  if ([string]::IsNullOrWhiteSpace($selectedText)) { return }
                  $global:selectedYears = @([int]$selectedText)
 
+                 # Stop any ongoing background comment loading
+                 Stop-BackgroundCommentLoading
+                 
                  # Apply filter and update main list
                  Apply-YearFilter
                  Update-ListView
@@ -1378,6 +1545,11 @@ $form.Add_Shown({
      }
      
      $form.Activate()
+})
+
+# Add form closing event to stop background loading
+$form.Add_FormClosing({
+    Stop-BackgroundCommentLoading
 })
 
 [void]$form.ShowDialog()
