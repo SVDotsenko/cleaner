@@ -667,8 +667,8 @@ function Start-BackgroundCommentLoading {
         return
     }
     
-    Write-Host "=== Starting Background Comment Loading ===" -ForegroundColor Cyan
-    Write-Host "Unloaded comments: $unloadedCount" -ForegroundColor Yellow
+    Write-Host "=== Background: Starting Comment Loading ===" -ForegroundColor Cyan
+    Write-Host "Background: Unloaded comments: $unloadedCount" -ForegroundColor Yellow
     
     # Collect indexes of files that need comments loaded from ALL files
     $global:backgroundFileIndexes = @()
@@ -685,13 +685,11 @@ function Start-BackgroundCommentLoading {
      $global:backgroundTimer = New-Object System.Windows.Forms.Timer
      $global:backgroundTimer.Interval = 100  # 100ms between files for better UI responsiveness
     $global:backgroundTimer.Add_Tick({
-        Write-Host "Timer tick: current=$global:backgroundCurrentIndex, total=$($global:backgroundFileIndexes.Count)" -ForegroundColor Green
-        
         if ($global:backgroundCurrentIndex -lt $global:backgroundFileIndexes.Count) {
             $fileIndex = $global:backgroundFileIndexes[$global:backgroundCurrentIndex]
             $file = $global:fileTable[$fileIndex]
             
-            Write-Host "Processing file: $($file.Name)" -ForegroundColor Cyan
+            Write-Host "Background loading comments for: $($file.Name) (index $($global:backgroundCurrentIndex + 1) of $($global:backgroundFileIndexes.Count))" -ForegroundColor Green
             
             if ($null -ne $file -and -not $file.CommentsLoaded) {
                 # Load comment using inline function to avoid scope issues
@@ -743,7 +741,7 @@ function Start-BackgroundCommentLoading {
             $global:backgroundCurrentIndex++
         } else {
             # All files processed
-            Write-Host "Background comment loading completed successfully" -ForegroundColor Green
+            Write-Host "Background: Comment loading completed successfully" -ForegroundColor Green
             
             # Stop timer and reset state
             $global:backgroundTimer.Stop()
@@ -753,7 +751,7 @@ function Start-BackgroundCommentLoading {
             $global:backgroundFileIndexes = @()
             $global:backgroundCurrentIndex = 0
             
-            Write-Host "Timer stopped and state reset" -ForegroundColor Green
+            Write-Host "Background: Timer stopped and state reset" -ForegroundColor Green
             
             # Re-enable Update button
             if ($controls.UpdateCommentsBtn) {
@@ -769,20 +767,20 @@ function Start-BackgroundCommentLoading {
     $global:isBackgroundLoading = $true
     $global:backgroundTimer.Start()
     
-    Write-Host "Timer started with interval: $($global:backgroundTimer.Interval)ms" -ForegroundColor Green
-    Write-Host "Background loading state: $global:isBackgroundLoading" -ForegroundColor Green
+    Write-Host "Background: Timer started with interval: $($global:backgroundTimer.Interval)ms" -ForegroundColor Green
+    Write-Host "Background: Loading state: $global:isBackgroundLoading" -ForegroundColor Green
     
     # Disable Update button during background loading
     if ($controls.UpdateCommentsBtn) {
         $controls.UpdateCommentsBtn.Enabled = $false
     }
     
-    Write-Host "=== Start-BackgroundCommentLoading completed ===" -ForegroundColor Magenta
+    Write-Host "=== Background: Start-BackgroundCommentLoading completed ===" -ForegroundColor Magenta
 }
 
 function Stop-BackgroundCommentLoading {
     if ($global:backgroundTimer -and $global:isBackgroundLoading) {
-        Write-Host "=== Stopping Background Comment Loading ===" -ForegroundColor Yellow
+        Write-Host "=== Background: Stopping Comment Loading ===" -ForegroundColor Yellow
         $global:backgroundTimer.Stop()
         $global:backgroundTimer.Dispose()
         $global:backgroundTimer = $null
