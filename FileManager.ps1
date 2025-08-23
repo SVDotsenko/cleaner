@@ -613,9 +613,6 @@ function Start-BackgroundCommentLoading {
         return
     }
 
-    # Disable "All" radio button during background loading
-    $controls.AllYearsRadio.Enabled = $false
-
     # Collect indexes of files that need comments loaded from ALL files
     $global:backgroundFileIndexes = @()
     for ($i = 0; $i -lt $global:fileTable.Count; $i++) {
@@ -1313,6 +1310,10 @@ $form.Add_Shown({
     CreateControls
     Set-AllFonts $global:fontSize
     BindHandlers
+
+    # Disable "All" radio button at startup
+    $controls.AllYearsRadio.Enabled = $false
+
     Get-FilesFromFolder
     
     # Auto-load comments for visible items on startup
