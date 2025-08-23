@@ -154,7 +154,7 @@ function CreateControls {
 
          $filterRadioY = 25  # Increased from 20 to 25
          $controls.ThisYearRadio = New-Object Windows.Forms.RadioButton
-         $controls.ThisYearRadio.Text = "This Year"
+         $controls.ThisYearRadio.Text = "Last 20"
          $controls.ThisYearRadio.AutoSize = $false
          $controls.ThisYearRadio.Checked = $true
          $controls.FilterGroupBox.Controls.Add($controls.ThisYearRadio)
@@ -349,8 +349,7 @@ function Update-InfoLabels {
         $sumFormatted = Format-Duration $sum
         $yearInfo = ""
         if ($global:commentsEnabled -and $controls.ThisYearRadio.Checked) {
-            $currentYear = (Get-Date).Year
-            $yearInfo = " | Year filter: $currentYear"
+            $yearInfo = " | Filter: Last 20"
         }
         $controls.StatusLabel.Text = "Total files: $count | Total duration: $sumFormatted$yearInfo"
     }
@@ -482,14 +481,12 @@ function Apply-YearFilter {
     }
     
     if ($controls.ThisYearRadio.Checked) {
-        $currentYear = (Get-Date).Year
+        # Show last 20 records sorted by date (newest first)
         $global:filteredTable = $global:fileTable |
-            Where-Object {
-                $_.DisplayDate -ne $null -and
-                $_.DisplayDate.Year -eq $currentYear
-            }
+            Sort-Object DisplayDate -Descending |
+            Select-Object -First 20
     } else {
-        # All years - show all files
+        # All records - show all files
         $global:filteredTable = $global:fileTable
     }
 }
