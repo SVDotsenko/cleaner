@@ -135,7 +135,7 @@ function CreateControls {
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-     $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
+    $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
     $controls.CommentsBox.Multiline = $true
     $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
     $controls.CommentsBox.ReadOnly = $false
@@ -149,14 +149,6 @@ function CreateControls {
     $controls.SaveCommentsBtn.Enabled = $false
     $form.Controls.Add($controls.SaveCommentsBtn)
     $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
-
-    $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
-    $controls.UpdateCommentsBtn.Text = "Update"
-    $controls.UpdateCommentsBtn.Enabled = $true
-    $controls.UpdateCommentsBtn.Visible = $true
-    $form.Controls.Add($controls.UpdateCommentsBtn)
-    $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
     # Add Filter GroupBox
@@ -252,12 +244,6 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SortNameRadio, $sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeRadio, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedRadio, $sortCreatedTooltip.Trim())
-
-    $updateTooltip = @"
-Loads metadata for visible files in the list.
-Metadata is loaded on-demand to improve performance.
-"@
-    $toolTip.SetToolTip($controls.UpdateCommentsBtn, $updateTooltip.Trim())
 }
 
 function LayoutOnlyFonts {
@@ -293,8 +279,6 @@ function LayoutOnlyFonts {
     $y += 150 + $gap
     $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
-    $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
 
     # Update Filter GroupBox layout
     $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
@@ -319,9 +303,8 @@ function LayoutOnlyFonts {
     $controls.SortSizeRadio.Font = $font
     $controls.SortCreatedRadio.Font = $font
     $controls.SelectFolder.Font = $font
-         $controls.CommentsBox.Font = $font
+    $controls.CommentsBox.Font = $font
     $controls.SaveCommentsBtn.Font = $font
-    $controls.UpdateCommentsBtn.Font = $font
     $controls.FilterGroupBox.Font = $font
     $controls.ThisYearRadio.Font = $font
     $controls.AllYearsRadio.Font = $font
@@ -534,15 +517,11 @@ function Update-ListViewTextColors {
 }
 
 function Load-CommentsForVisibleItems {
-    Write-Host "=== Load-CommentsForVisibleItems called ===" -ForegroundColor Blue
-    
     # Ensure filtered table exists
     if (-not $global:filteredTable) { $global:filteredTable = @() }
     $totalCount = 0
     try { $totalCount = $global:filteredTable.Count } catch { $totalCount = 0 }
     
-    Write-Host "Total count: $totalCount" -ForegroundColor Yellow
-
     # Nothing to do if there are no files or no rows in the ListView
     if ($totalCount -le 0 -or $controls.ListView.Items.Count -le 0) {
         return
@@ -561,11 +540,6 @@ function Load-CommentsForVisibleItems {
     $startIndex = $topItemIndex
     $endIndex = [math]::Min($totalCount - 1, $topItemIndex + $visibleCount - 1)
     $endIndex = [math]::Min($totalCount - 1, $endIndex + 25)  # small buffer
-
-    Write-Host "=== Loading Metadata for Visible Items ===" -ForegroundColor Cyan
-    Write-Host "Top item index: $topItemIndex, Visible count: $visibleCount" -ForegroundColor Yellow
-    Write-Host "Range: $startIndex to $endIndex (with buffer)" -ForegroundColor Yellow
-    Write-Host "Total files in filtered table: $totalCount" -ForegroundColor Yellow
 
     $loadedCount = 0
     $skippedCount = 0
@@ -588,7 +562,6 @@ function Load-CommentsForVisibleItems {
                     }
                 }
 
-                Write-Host "Loading metadata for: $($file.Name) (index $i)" -ForegroundColor Green
                 $metadata = Read-FileMetadata $file.Path
                 $file.Comments = $metadata.Comments
                 $file.Duration = $metadata.Duration
@@ -615,39 +588,28 @@ function Load-CommentsForVisibleItems {
                     }
                 }
             } else {
-                Write-Host "Skipping already loaded: $($file.Name) (index $i)" -ForegroundColor Gray
                 $skippedCount++
             }
         }
     }
 
-    
     if ($loadedCount -gt 0) {
         Update-ListViewTextColors
     }
     
     # Start background loading of all remaining comments
-    Write-Host "Calling Start-BackgroundCommentLoading..." -ForegroundColor Blue
     Start-BackgroundCommentLoading
-    Write-Host "=== Load-CommentsForVisibleItems completed ===" -ForegroundColor Blue
 }
 
 function Start-BackgroundCommentLoading {
-    Write-Host "=== Start-BackgroundCommentLoading called ===" -ForegroundColor Magenta
-    Write-Host "Comments enabled: $global:commentsEnabled" -ForegroundColor Yellow
-    Write-Host "Already loading: $global:isBackgroundLoading" -ForegroundColor Yellow
-    
     if (-not $global:commentsEnabled -or $global:isBackgroundLoading) {
-        Write-Host "Early return - comments disabled or already loading" -ForegroundColor Red
         return
     }
     
     # Get count of unloaded metadata from ALL files (not just filtered)
     $unloadedCount = ($global:fileTable | Where-Object { -not $_.CommentsLoaded }).Count
-    Write-Host "Unloaded metadata count: $unloadedCount" -ForegroundColor Yellow
 
     if ($unloadedCount -eq 0) {
-        Write-Host "No unloaded metadata, returning" -ForegroundColor Red
         return
     }
 
@@ -756,11 +718,6 @@ function Start-BackgroundCommentLoading {
             $global:backgroundFileIndexes = @()
             $global:backgroundCurrentIndex = 0
             
-            # Re-enable Update button
-            if ($controls.UpdateCommentsBtn) {
-                $controls.UpdateCommentsBtn.Enabled = $true
-            }
-            
             # Update final status
             Update-InfoLabels
         }
@@ -769,16 +726,6 @@ function Start-BackgroundCommentLoading {
     # Start background loading
     $global:isBackgroundLoading = $true
     $global:backgroundTimer.Start()
-    
-    Write-Host "Background: Timer started with interval: $($global:backgroundTimer.Interval)ms" -ForegroundColor Green
-    Write-Host "Background: Loading state: $global:isBackgroundLoading" -ForegroundColor Green
-    
-    # Disable Update button during background loading
-    if ($controls.UpdateCommentsBtn) {
-        $controls.UpdateCommentsBtn.Enabled = $false
-    }
-    
-    Write-Host "=== Background: Start-BackgroundCommentLoading completed ===" -ForegroundColor Magenta
 }
 
 function Stop-BackgroundCommentLoading {
@@ -793,11 +740,6 @@ function Stop-BackgroundCommentLoading {
         # Hide progress bar
         $controls.ProgressBar.Visible = $false
 
-        # Re-enable Update button
-        if ($controls.UpdateCommentsBtn) {
-            $controls.UpdateCommentsBtn.Enabled = $true
-        }
-        
         # Update final status
         Update-InfoLabels
     }
@@ -1017,34 +959,26 @@ function Write-FileMetadata($filePath, $comments) {
 
 function Update-CommentsDisplay {
     $selectedCount = $controls.ListView.SelectedItems.Count
-    Write-Host "Update-CommentsDisplay: Selected count = $selectedCount" -ForegroundColor Yellow
-    
+
     if ($selectedCount -eq 1) {
         $index = $controls.ListView.SelectedItems[0].Index
-        Write-Host "Update-CommentsDisplay: Selected index = $index" -ForegroundColor Yellow
-        
+
         if ($index -lt $global:filteredTable.Count) {
             $file = $global:filteredTable[$index]
-            Write-Host "Update-CommentsDisplay: File = $($file.Name), CommentsLoaded = $($file.CommentsLoaded)" -ForegroundColor Yellow
-            
+
             if ($file -and $file.Path -and (Test-Path $file.Path)) {
                 $extension = [System.IO.Path]::GetExtension($file.Path).ToLower()
-                Write-Host "Update-CommentsDisplay: Extension = $extension" -ForegroundColor Yellow
-                
+
                 if ($extension -match "\.(m4a|mp3|ogg)$") {
                     $global:currentSelectedFile = $file
                     
                     if (-not $file.CommentsLoaded) {
-                        Write-Host "Update-CommentsDisplay: Loading metadata for $($file.Name)" -ForegroundColor Cyan
                         $metadata = Read-FileMetadata $file.Path
                         $file.Comments = $metadata.Comments
                         $file.Duration = $metadata.Duration
                         $file.CommentsLoaded = $true
-                        Write-Host "Update-CommentsDisplay: Loaded metadata = '$($file.Comments)'" -ForegroundColor Green
 
                         Update-ListViewTextColors
-                    } else {
-                        Write-Host "Update-CommentsDisplay: Using cached metadata = '$($file.Comments)'" -ForegroundColor Green
                     }
                     
                     $comments = $file.Comments
@@ -1052,28 +986,24 @@ function Update-CommentsDisplay {
                     $controls.CommentsBox.Text = $comments
                     $controls.SaveCommentsBtn.Enabled = $false
                 } else {
-                    Write-Host "Update-CommentsDisplay: Not an audio file" -ForegroundColor Red
                     $global:currentSelectedFile = $null
                     $global:originalCommentsText = ""
                     $controls.CommentsBox.Text = ""
                     $controls.SaveCommentsBtn.Enabled = $false
                 }
             } else {
-                Write-Host "Update-CommentsDisplay: File or path invalid" -ForegroundColor Red
                 $global:currentSelectedFile = $null
                 $global:originalCommentsText = ""
                 $controls.CommentsBox.Text = ""
                 $controls.SaveCommentsBtn.Enabled = $false
             }
         } else {
-            Write-Host "Update-CommentsDisplay: Index out of range" -ForegroundColor Red
             $global:currentSelectedFile = $null
             $global:originalCommentsText = ""
             $controls.CommentsBox.Text = ""
             $controls.SaveCommentsBtn.Enabled = $false
         }
     } else {
-        Write-Host "Update-CommentsDisplay: Multiple or no selection, clearing" -ForegroundColor Yellow
         $global:currentSelectedFile = $null
         $global:originalCommentsText = ""
         $controls.CommentsBox.Text = ""
@@ -1260,44 +1190,6 @@ function BindHandlers {
         }
     })
     
-    # Track scroll position for auto-updating comments
-    $global:lastScrollTop = 0
-    $global:scrollTimer = $null
-
-    # Create a timer to handle scroll events
-    $global:scrollTimer = New-Object System.Windows.Forms.Timer
-    $global:scrollTimer.Interval = 500  # 500ms delay
-    $global:scrollTimer.Add_Tick({
-        $currentTop = $controls.ListView.TopItem
-        if ($currentTop -and $currentTop.Index -ne $global:lastScrollTop) {
-            $global:lastScrollTop = $currentTop.Index
-            # Enable the Update button when scrolling occurs
-            $controls.UpdateCommentsBtn.Enabled = $true
-            $controls.UpdateCommentsBtn.PerformClick()
-        }
-        $global:scrollTimer.Stop()
-    })
-
-    # Add mouse wheel event handler for scroll detection
-    $controls.ListView.Add_MouseWheel({
-        # Enable the Update button when scrolling occurs
-        $controls.UpdateCommentsBtn.Enabled = $true
-        $global:scrollTimer.Stop()
-        $global:scrollTimer.Start()
-    })
-
-    # Add mouse capture changed event handler to detect scrollbar dragging
-    $controls.ListView.Add_MouseCaptureChanged({
-        $currentTop = $controls.ListView.TopItem
-        $currentIndex = if ($currentTop) { $currentTop.Index } else { -1 }
-        if ($currentTop -and $currentIndex -ne $global:lastScrollTop) {
-            # Enable the Update button only when scroll position changed
-            $controls.UpdateCommentsBtn.Enabled = $true
-            $global:scrollTimer.Stop()
-            $global:scrollTimer.Start()
-        }
-    })
-
     $controls.SaveCommentsBtn.Add_Click({
         if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
             $newComments = $controls.CommentsBox.Text
@@ -1341,26 +1233,6 @@ function BindHandlers {
         }
     })
 
-    $controls.UpdateCommentsBtn.Add_Click({
-        $controls.UpdateCommentsBtn.Enabled = $false
-        $originalText = $controls.UpdateCommentsBtn.Text
-        $controls.UpdateCommentsBtn.Text = "Loading..."
-
-        [System.Windows.Forms.Application]::DoEvents()
-
-        $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-
-        Write-Host "=== Manual Metadata Loading Started ===" -ForegroundColor Cyan
-        Load-CommentsForVisibleItems
-        Write-Host "=== Manual Metadata Loading Completed ===" -ForegroundColor Cyan
-
-        $controls.UpdateCommentsBtn.Text = $originalText
-        $controls.UpdateCommentsBtn.Enabled = $false  # Disable after update
-        $form.Cursor = [System.Windows.Forms.Cursors]::Default
-
-        [System.Windows.Forms.Application]::DoEvents()
-    })
-
     $controls.CommentsBox.Add_TextChanged({
         if ($global:currentSelectedFile) {
             $currentText = $controls.CommentsBox.Text
@@ -1373,48 +1245,42 @@ function BindHandlers {
         }
     })
 
-         $controls.AboutLink.Add_Click({
-         Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
-     })
+    $controls.AboutLink.Add_Click({
+        Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
+    })
 
-     # Add year filter change handlers
-     $controls.ThisYearRadio.Add_CheckedChanged({
-         if ($controls.ThisYearRadio.Checked) {
-             # Stop any ongoing background comment loading
-             Stop-BackgroundCommentLoading
+    # Add year filter change handlers
+    $controls.ThisYearRadio.Add_CheckedChanged({
+        if ($controls.ThisYearRadio.Checked) {
+            # Stop any ongoing background comment loading
+            Stop-BackgroundCommentLoading
 
-             # Apply filter and update main list
-             Apply-YearFilter
-             Update-ListView
+            # Apply filter and update main list
+            Apply-YearFilter
+            Update-ListView
 
-             # Auto-load comments for visible items after year filter change
-             if ($controls.ListView.Items.Count -gt 0) {
-                 $controls.UpdateCommentsBtn.Enabled = $true
-                 $controls.UpdateCommentsBtn.PerformClick()
-             } else {
-                 $controls.UpdateCommentsBtn.Enabled = $false
-             }
-         }
-     })
+            # Auto-load comments for visible items after year filter change
+            if ($controls.ListView.Items.Count -gt 0) {
+                Load-CommentsForVisibleItems
+            }
+        }
+    })
 
-     $controls.AllYearsRadio.Add_CheckedChanged({
-         if ($controls.AllYearsRadio.Checked) {
-             # Stop any ongoing background comment loading
-             Stop-BackgroundCommentLoading
+    $controls.AllYearsRadio.Add_CheckedChanged({
+        if ($controls.AllYearsRadio.Checked) {
+            # Stop any ongoing background comment loading
+            Stop-BackgroundCommentLoading
 
-             # Apply filter and update main list
-             Apply-YearFilter
-             Update-ListView
+            # Apply filter and update main list
+            Apply-YearFilter
+            Update-ListView
 
-             # Auto-load comments for visible items after year filter change
-             if ($controls.ListView.Items.Count -gt 0) {
-                 $controls.UpdateCommentsBtn.Enabled = $true
-                 $controls.UpdateCommentsBtn.PerformClick()
-             } else {
-                 $controls.UpdateCommentsBtn.Enabled = $false
-             }
-         }
-     })
+            # Auto-load comments for visible items after year filter change
+            if ($controls.ListView.Items.Count -gt 0) {
+                Load-CommentsForVisibleItems
+            }
+        }
+    })
 }
 
 $form.Add_Resize({
@@ -1440,15 +1306,8 @@ $form.Add_Shown({
     BindHandlers
     Get-FilesFromFolder
     
-    # Initialize baseline top index to avoid false scroll detection on first clicks
-    if ($null -ne $controls.ListView.TopItem) {
-        $global:lastScrollTop = $controls.ListView.TopItem.Index
-    } else {
-        $global:lastScrollTop = 0
-    }
-    
     # Auto-load comments for visible items on startup
-    $controls.UpdateCommentsBtn.PerformClick()
+    Load-CommentsForVisibleItems
 
     # Ensure proper layout after form is fully shown
     LayoutOnlyFonts
