@@ -613,6 +613,9 @@ function Start-BackgroundCommentLoading {
         return
     }
 
+    # Disable "All" radio button during background loading
+    $controls.AllYearsRadio.Enabled = $false
+
     # Collect indexes of files that need comments loaded from ALL files
     $global:backgroundFileIndexes = @()
     for ($i = 0; $i -lt $global:fileTable.Count; $i++) {
@@ -710,6 +713,9 @@ function Start-BackgroundCommentLoading {
             # Hide progress bar
             $controls.ProgressBar.Visible = $false
 
+            # Re-enable "All" radio button
+            $controls.AllYearsRadio.Enabled = $true
+
             # Stop timer and reset state
             $global:backgroundTimer.Stop()
             $global:backgroundTimer.Dispose()
@@ -739,6 +745,9 @@ function Stop-BackgroundCommentLoading {
         
         # Hide progress bar
         $controls.ProgressBar.Visible = $false
+
+        # Re-enable "All" radio button
+        $controls.AllYearsRadio.Enabled = $true
 
         # Update final status
         Update-InfoLabels
