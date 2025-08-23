@@ -166,6 +166,12 @@ function CreateControls {
     $controls.StatusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleRight
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
     
+    # Add ProgressBar for background loading BEFORE StatusLabel (after StatusLabel)
+    $controls.ProgressBar = New-Object Windows.Forms.ToolStripProgressBar
+    $controls.ProgressBar.Visible = $false
+    $controls.ProgressBar.Width = 200
+    $controls.StatusStrip.Items.Add($controls.ProgressBar)
+
     $form.Controls.Add($controls.StatusStrip)
     
     $controls.ListView = New-Object Windows.Forms.ListView
@@ -683,9 +689,7 @@ function Start-BackgroundCommentLoading {
         Write-Host "No unloaded metadata, returning" -ForegroundColor Red
         return
     }
-    
 
-    
     # Collect indexes of files that need comments loaded from ALL files
     $global:backgroundFileIndexes = @()
     for ($i = 0; $i -lt $global:fileTable.Count; $i++) {
@@ -697,9 +701,15 @@ function Start-BackgroundCommentLoading {
     
     $global:backgroundCurrentIndex = 0
     
-         # Create and configure timer
-     $global:backgroundTimer = New-Object System.Windows.Forms.Timer
-     $global:backgroundTimer.Interval = 100  # 100ms between files for better UI responsiveness
+    # Show progress bar with normal progression (not multiplied)
+    $controls.ProgressBar.Minimum = 0
+    $controls.ProgressBar.Maximum = $global:backgroundFileIndexes.Count
+    $controls.ProgressBar.Value = 0
+    $controls.ProgressBar.Visible = $true
+
+    # Create and configure timer
+    $global:backgroundTimer = New-Object System.Windows.Forms.Timer
+    $global:backgroundTimer.Interval = 50  # Reduced interval for smoother updates
     $global:backgroundTimer.Add_Tick({
         if ($global:backgroundCurrentIndex -lt $global:backgroundFileIndexes.Count) {
             $fileIndex = $global:backgroundFileIndexes[$global:backgroundCurrentIndex]
@@ -749,26 +759,19 @@ function Start-BackgroundCommentLoading {
                 
                 $file.CommentsLoaded = $true
                 
-                # Update progress
-                $loadedCount = $global:backgroundCurrentIndex + 1
-                $totalCount = $global:backgroundFileIndexes.Count
-                $progress = [math]::Round(($loadedCount / $totalCount) * 100)
-                
-                                                 # Update status with progress
-                $yearInfo = ""
-                if ($global:selectedYears.Count -gt 0 -and $global:selectedYears.Count -lt $global:fileTable.Count) {
-                    $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
-                }
-                
-                $controls.StatusLabel.Text = "Total files: $($global:filteredTable.Count) | Total duration: $(Format-Duration (($global:filteredTable | Measure-Object -Property Duration -Sum).Sum))$yearInfo | Loading ALL metadata: $loadedCount of $totalCount files ($progress%)"
+                # Update progress bar with normal progression
+                $controls.ProgressBar.Value = $global:backgroundCurrentIndex + 1
 
-                 # Force UI update
-                 [System.Windows.Forms.Application]::DoEvents()
+                # Force UI update
+                [System.Windows.Forms.Application]::DoEvents()
             }
             
             $global:backgroundCurrentIndex++
         } else {
             # All files processed
+            # Hide progress bar
+            $controls.ProgressBar.Visible = $false
+
             # Stop timer and reset state
             $global:backgroundTimer.Stop()
             $global:backgroundTimer.Dispose()
@@ -811,6 +814,9 @@ function Stop-BackgroundCommentLoading {
         $global:backgroundFileIndexes = @()
         $global:backgroundCurrentIndex = 0
         
+        # Hide progress bar
+        $controls.ProgressBar.Visible = $false
+
         # Re-enable Update button
         if ($controls.UpdateCommentsBtn) {
             $controls.UpdateCommentsBtn.Enabled = $true
