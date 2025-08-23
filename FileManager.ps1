@@ -68,8 +68,6 @@ function CreateControls {
     $y = $gap
     $x = $gap
 
-
-
     $btnDeleteW = [int](($btnW - $gap) / 2)
 
     $controls.DeleteBtn = New-Object Windows.Forms.Button
@@ -85,27 +83,36 @@ function CreateControls {
     $controls.BinBtn.SetBounds($x + $btnDeleteW + $gap, $y, $btnDeleteW, $btnH)
     $y += $btnH + $gap
 
+    # Add Sort GroupBox
+    $sortGroupHeight = $btnH * 3 + $gap * 2 + 30  # Increased padding from 20 to 30
+    $controls.SortGroupBox = New-Object Windows.Forms.GroupBox
+    $controls.SortGroupBox.Text = "Sort"
+    $controls.SortGroupBox.SetBounds($x, $y, $btnW, $sortGroupHeight)
+    $form.Controls.Add($controls.SortGroupBox)
+
+    $radioY = 25  # Increased from 20 to 25
     $controls.SortNameRadio = New-Object Windows.Forms.RadioButton
     $controls.SortNameRadio.Text = "Name"
     $controls.SortNameRadio.AutoSize = $false
-    $form.Controls.Add($controls.SortNameRadio)
-    $controls.SortNameRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    $controls.SortGroupBox.Controls.Add($controls.SortNameRadio)
+    $controls.SortNameRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
+    $radioY += $btnH + $gap
 
     $controls.SortSizeRadio = New-Object Windows.Forms.RadioButton
     $controls.SortSizeRadio.Text = "Duration"
     $controls.SortSizeRadio.AutoSize = $false
-    $form.Controls.Add($controls.SortSizeRadio)
-    $controls.SortSizeRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    $controls.SortGroupBox.Controls.Add($controls.SortSizeRadio)
+    $controls.SortSizeRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
+    $radioY += $btnH + $gap
 
     $controls.SortCreatedRadio = New-Object Windows.Forms.RadioButton
     $controls.SortCreatedRadio.Text = "Created"
     $controls.SortCreatedRadio.AutoSize = $false
     $controls.SortCreatedRadio.Checked = $true
-    $form.Controls.Add($controls.SortCreatedRadio)
-    $controls.SortCreatedRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    $controls.SortGroupBox.Controls.Add($controls.SortCreatedRadio)
+    $controls.SortCreatedRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
+
+    $y += $sortGroupHeight + $gap
 
     $controls.SelectFolder = New-Object Windows.Forms.Button
     $controls.SelectFolder.Text = "Folder"
@@ -138,17 +145,29 @@ function CreateControls {
          $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
          $y += $btnH + $gap
          
-         # Add Year Filter ListView
-         $controls.YearFilterListView = New-Object Windows.Forms.ListView
-         $controls.YearFilterListView.View = 'Details'
-         $controls.YearFilterListView.FullRowSelect = $true
-         $controls.YearFilterListView.MultiSelect = $false  # Отключаем множественное выделение
-         $controls.YearFilterListView.Scrollable = $true
-         $controls.YearFilterListView.GridLines = $true
-         $form.Controls.Add($controls.YearFilterListView)
-         $controls.YearFilterListView.SetBounds($x, $y, $btnW, 100)  # Temporary height, will be adjusted in LayoutOnlyFonts
-         $controls.YearFilterListView.Columns.Add("Year", -1) | Out-Null
-         $y += 100 + $gap
+         # Add Filter GroupBox
+         $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
+         $controls.FilterGroupBox = New-Object Windows.Forms.GroupBox
+         $controls.FilterGroupBox.Text = "Filter"
+         $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
+         $form.Controls.Add($controls.FilterGroupBox)
+
+         $filterRadioY = 25  # Increased from 20 to 25
+         $controls.ThisYearRadio = New-Object Windows.Forms.RadioButton
+         $controls.ThisYearRadio.Text = "This Year"
+         $controls.ThisYearRadio.AutoSize = $false
+         $controls.ThisYearRadio.Checked = $true
+         $controls.FilterGroupBox.Controls.Add($controls.ThisYearRadio)
+         $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+         $filterRadioY += $btnH + $gap
+
+         $controls.AllYearsRadio = New-Object Windows.Forms.RadioButton
+         $controls.AllYearsRadio.Text = "All"
+         $controls.AllYearsRadio.AutoSize = $false
+         $controls.FilterGroupBox.Controls.Add($controls.AllYearsRadio)
+         $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+
+         $y += $filterGroupHeight + $gap
      }
 
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
@@ -240,21 +259,23 @@ function LayoutOnlyFonts {
     $y = $gap
     $x = $gap
 
-
-
     $btnDeleteW = [int](($btnW - $gap) / 2)
     $controls.DeleteBtn.SetBounds($x, $y, $btnDeleteW, $btnH)
     $controls.BinBtn.SetBounds($x + $btnDeleteW + $gap, $y, $btnDeleteW, $btnH)
     $y += $btnH + $gap
 
-    $controls.SortNameRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    # Update Sort GroupBox layout
+    $sortGroupHeight = $btnH * 3 + $gap * 2 + 30  # Increased padding from 20 to 30
+    $controls.SortGroupBox.SetBounds($x, $y, $btnW, $sortGroupHeight)
 
-    $controls.SortSizeRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    $radioY = 25  # Increased from 20 to 25
+    $controls.SortNameRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
+    $radioY += $btnH + $gap
+    $controls.SortSizeRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
+    $radioY += $btnH + $gap
+    $controls.SortCreatedRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
 
-    $controls.SortCreatedRadio.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
+    $y += $sortGroupHeight + $gap
 
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
@@ -264,23 +285,20 @@ function LayoutOnlyFonts {
         $y += 150 + $gap
         $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
         $y += $btnH + $gap
-                 $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-         $y += $btnH + $gap
-         
-         # Update Year Filter ListView position and height to fill remaining space
-         # Calculate the exact position where YearFilterListView should start
-         # Use the same calculation as in Add_Resize for consistency
-         $yearFilterStartY = $y
-         
-         # Only proceed if form has valid dimensions
-         if ($form.ClientSize.Height -gt 0) {
-             $remainingHeight = $form.ClientSize.Height - $yearFilterStartY - $controls.StatusStrip.Height - $gap
-             
-             if ($remainingHeight -gt 50) {  # Minimum height check
-                 $controls.YearFilterListView.SetBounds($x, $yearFilterStartY, $btnW, $remainingHeight)
-             }
-         }
-     }
+        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+        $y += $btnH + $gap
+
+        # Update Filter GroupBox layout
+        $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
+        $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
+
+        $filterRadioY = 25  # Increased from 20 to 25
+        $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+        $filterRadioY += $btnH + $gap
+        $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+
+        $y += $filterGroupHeight + $gap
+    }
 
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
@@ -289,6 +307,7 @@ function LayoutOnlyFonts {
 
     $controls.DeleteBtn.Font = $font
     $controls.BinBtn.Font = $font
+    $controls.SortGroupBox.Font = $font
     $controls.SortNameRadio.Font = $font
     $controls.SortSizeRadio.Font = $font
     $controls.SortCreatedRadio.Font = $font
@@ -297,8 +316,9 @@ function LayoutOnlyFonts {
          $controls.CommentsBox.Font = $font
          $controls.SaveCommentsBtn.Font = $font
          $controls.UpdateCommentsBtn.Font = $font
-
-         $controls.YearFilterListView.Font = $font
+         $controls.FilterGroupBox.Font = $font
+         $controls.ThisYearRadio.Font = $font
+         $controls.AllYearsRadio.Font = $font
      }
     $controls.StatusLabel.Font = $font
 }
@@ -328,8 +348,9 @@ function Update-InfoLabels {
         }
         $sumFormatted = Format-Duration $sum
         $yearInfo = ""
-        if ($global:commentsEnabled -and $global:selectedYears.Count -gt 0 -and $global:selectedYears.Count -lt $global:fileTable.Count) {
-            $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
+        if ($global:commentsEnabled -and $controls.ThisYearRadio.Checked) {
+            $currentYear = (Get-Date).Year
+            $yearInfo = " | Year filter: $currentYear"
         }
         $controls.StatusLabel.Text = "Total files: $count | Total duration: $sumFormatted$yearInfo"
     }
@@ -450,62 +471,27 @@ function Update-ListViewPreserveScroll {
 }
 
 function Update-YearFilterList {
-    if (-not $global:commentsEnabled) {
-        return
-    }
-    
-    $controls.YearFilterListView.Items.Clear()
-    
-    # Get unique years from file table, sorted in descending order
-    $uniqueYears = $global:fileTable | 
-        Where-Object { $_.DisplayDate -ne $null } | 
-        ForEach-Object { $_.DisplayDate.Year } | 
-        Sort-Object -Unique -Descending
-    
-    if ($uniqueYears.Count -eq 0) {
-        return
-    }
-    
-    # Add years to ListView
-    foreach ($year in $uniqueYears) {
-        $item = New-Object Windows.Forms.ListViewItem("$year")
-        $controls.YearFilterListView.Items.Add($item) | Out-Null
-    }
-    
-    # Select only the latest (maximum) year by default
-    if ($controls.YearFilterListView.Items.Count -gt 0) {
-        # Просто выделяем первый элемент (максимальный год)
-        $controls.YearFilterListView.Items[0].Selected = $true
-        $global:selectedYears = @([int]$controls.YearFilterListView.Items[0].Text)
-    } else {
-        $global:selectedYears = @()
-    }
-    
-    # Auto-resize Year column to fill available width
-    if ($controls.YearFilterListView.Columns.Count -gt 0) {
-        # Calculate available width for Year column (similar to comments column logic)
-        $totalWidth = $controls.YearFilterListView.Width
-        $scrollbarWidth = 20  # Account for scrollbar width
-        $padding = 5          # Some padding
-        $availableWidth = $totalWidth - $scrollbarWidth - $padding
-        
-        if ($availableWidth -gt 50) {  # Minimum width check
-            $controls.YearFilterListView.Columns[0].Width = $availableWidth
-        }
-    }
+    # This function is no longer needed but kept for compatibility
+    return
 }
 
 function Apply-YearFilter {
-    if ($global:selectedYears.Count -eq 0) {
+    if (-not $global:commentsEnabled) {
         $global:filteredTable = $global:fileTable
         return
     }
     
-    $global:filteredTable = $global:fileTable | 
-        Where-Object { 
-            $_.DisplayDate -ne $null -and 
-            $global:selectedYears -contains $_.DisplayDate.Year 
-        }
+    if ($controls.ThisYearRadio.Checked) {
+        $currentYear = (Get-Date).Year
+        $global:filteredTable = $global:fileTable |
+            Where-Object {
+                $_.DisplayDate -ne $null -and
+                $_.DisplayDate.Year -eq $currentYear
+            }
+    } else {
+        # All years - show all files
+        $global:filteredTable = $global:fileTable
+    }
 }
 
 function Update-ListViewTextColors {
@@ -1250,9 +1236,8 @@ function Get-FilesFromFolder {
         $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         
-        # Update year filter and apply it
+        # Apply year filter
         if ($global:commentsEnabled) {
-            Update-YearFilterList
             Apply-YearFilter
         } else {
             $global:filteredTable = $global:fileTable
@@ -1263,11 +1248,6 @@ function Get-FilesFromFolder {
         $global:fileTable = @()
         $global:filteredTable = @()
         $controls.SortCreatedRadio.Checked = $true
-        
-        if ($global:commentsEnabled) {
-            Update-YearFilterList
-        }
-        
         Update-ListView
     }
 }
@@ -1507,17 +1487,28 @@ function BindHandlers {
              Start-Process "https://github.com/SVDotsenko/cleaner/blob/main/readme.md"
          })
          
-         # Add year filter change handler
-         if ($global:commentsEnabled) {
-             $controls.YearFilterListView.Add_SelectedIndexChanged({
-                 # Guard: может не быть выделения в момент события
-                 if ($controls.YearFilterListView.SelectedItems.Count -eq 0) { return }
+         # Add year filter change handlers
+         $controls.ThisYearRadio.Add_CheckedChanged({
+             if ($controls.ThisYearRadio.Checked) {
+                 # Stop any ongoing background comment loading
+                 Stop-BackgroundCommentLoading
 
-                 # Update selected years array (теперь всегда только один элемент)
-                 $selectedText = $controls.YearFilterListView.SelectedItems[0].Text
-                 if ([string]::IsNullOrWhiteSpace($selectedText)) { return }
-                 $global:selectedYears = @([int]$selectedText)
+                 # Apply filter and update main list
+                 Apply-YearFilter
+                 Update-ListView
 
+                 # Auto-load comments for visible items after year filter change
+                 if ($controls.ListView.Items.Count -gt 0) {
+                     $controls.UpdateCommentsBtn.Enabled = $true
+                     $controls.UpdateCommentsBtn.PerformClick()
+                 } else {
+                     $controls.UpdateCommentsBtn.Enabled = $false
+                 }
+             }
+         })
+
+         $controls.AllYearsRadio.Add_CheckedChanged({
+             if ($controls.AllYearsRadio.Checked) {
                  # Stop any ongoing background comment loading
                  Stop-BackgroundCommentLoading
                  
@@ -1532,8 +1523,8 @@ function BindHandlers {
                  } else {
                      $controls.UpdateCommentsBtn.Enabled = $false
                  }
-             })
-         }
+             }
+         })
      }
 
 $form.Add_Resize({
@@ -1549,40 +1540,6 @@ $form.Add_Resize({
             $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
             $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
             $controls.ListView.Columns[2].Width = 100  # Fixed width for Created column
-            
-            # Update Year Filter ListView height to fill remaining space
-            # Calculate the exact position where YearFilterListView should start
-            # Use the same calculation as in Add_Resize for consistency
-            $gap = [int]($global:fontSize * 0.8)
-            $btnH = [int]($global:fontSize * 2.2)
-            $btnW = 160 + $global:fontSize*2
-            
-            # Calculate Y position: gap + 5 buttons + CommentsBox height + 2 buttons
-            # More precise calculation: gap + (btnH + gap) * 5 + 150 + (btnH + gap) * 2
-            $yearFilterStartY = $gap + ($btnH + $gap) * 5 + 150 + ($btnH + $gap) * 2
-            
-            # Only proceed if form has valid dimensions
-            if ($form.ClientSize.Height -gt 0) {
-                $remainingHeight = $form.ClientSize.Height - $yearFilterStartY - $controls.StatusStrip.Height - $gap
-                
-
-                
-                if ($remainingHeight -gt 50) {
-                $controls.YearFilterListView.SetBounds($controls.YearFilterListView.Left, $yearFilterStartY, $controls.YearFilterListView.Width, $remainingHeight)
-                
-                # Update Year column width to fill available space
-                if ($controls.YearFilterListView.Columns.Count -gt 0) {
-                    $totalWidth = $controls.YearFilterListView.Width
-                    $scrollbarWidth = 20  # Account for scrollbar width
-                    $padding = 5          # Some padding
-                    $availableWidth = $totalWidth - $scrollbarWidth - $padding
-                    
-                    if ($availableWidth -gt 50) {
-                        $controls.YearFilterListView.Columns[0].Width = $availableWidth
-                     }
-                 }
-                }
-            }
         } else {
             $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
         }
@@ -1608,16 +1565,13 @@ $form.Add_Shown({
     
     # Auto-load comments for visible items on startup
     if ($global:commentsEnabled) {
-                $controls.UpdateCommentsBtn.PerformClick()
-        
-                 # Initialize year filter
-         Update-YearFilterList
-         
-         # Ensure proper layout after form is fully shown
-         LayoutOnlyFonts
-     }
-     
-     $form.Activate()
+        $controls.UpdateCommentsBtn.PerformClick()
+
+        # Ensure proper layout after form is fully shown
+        LayoutOnlyFonts
+    }
+
+    $form.Activate()
  })
  
  # Add form closing event to stop background loading
