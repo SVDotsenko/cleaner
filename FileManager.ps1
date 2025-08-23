@@ -8,7 +8,7 @@ $global:commentsEnabled = $false
 $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
-$global:maxColumnWidths = @{ Name = 0; Date = 0; Comments = 0 }
+$global:maxColumnWidths = @{ Name = 0; Date = 0; Duration = 0 }
 $global:currentSelectedFile = $null
 $global:originalCommentsText = ""
 $global:lastScrollTop = 0
@@ -93,7 +93,7 @@ function CreateControls {
     $y += $btnH + $gap
 
     $controls.SortSizeRadio = New-Object Windows.Forms.RadioButton
-    $controls.SortSizeRadio.Text = "Size"
+    $controls.SortSizeRadio.Text = "Duration"
     $controls.SortSizeRadio.AutoSize = $false
     $form.Controls.Add($controls.SortSizeRadio)
     $controls.SortSizeRadio.SetBounds($x, $y, $btnW, $btnH)
@@ -182,7 +182,7 @@ function CreateControls {
     $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
     $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
     $controls.ListView.Columns.Add("File Name", -1) | Out-Null
-    $controls.ListView.Columns.Add("MB", 100) | Out-Null
+    $controls.ListView.Columns.Add("Duration", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
     
     if ($global:commentsEnabled) {
@@ -202,7 +202,7 @@ Moves the selected files to the Recycle Bin.
 Sorts the file list by name (alphabetically, A to Z).
 "@
     $sortSizeTooltip = @"
-Sorts the file list by size (from largest to smallest).
+Sorts the file list by duration (from longest to shortest).
 "@
     $sortCreatedTooltip = @"
 Sorts the file list by creation date (newest first).
@@ -216,8 +216,8 @@ Sorts the file list by creation date (newest first).
 
     if ($global:commentsEnabled) {
         $updateTooltip = @"
-Loads metadata comments for visible files in the list.
-Comments are loaded on-demand to improve performance.
+Loads metadata for visible files in the list.
+Metadata is loaded on-demand to improve performance.
 "@
         $toolTip.SetToolTip($controls.UpdateCommentsBtn, $updateTooltip.Trim())
     }
@@ -307,22 +307,37 @@ function Update-InfoLabels {
         foreach ($selectedItem in $controls.ListView.SelectedItems) {
             $fileIndex = $selectedItem.Index
             $file = $global:filteredTable[$fileIndex]
-            $sum += $file.SizeMB
+            $sum += $file.Duration
         }
-        $sum = [math]::Round($sum, 2)
-        $controls.StatusLabel.Text = "Selected files: $selectedCount | Selected size: $sum MB"
+        $sumFormatted = Format-Duration $sum
+        $controls.StatusLabel.Text = "Selected files: $selectedCount | Selected duration: $sumFormatted"
     } else {
         $count = $global:filteredTable.Count
         $sum = 0
         if ($count -gt 0) {
-            $sum = ($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum
-            $sum = [math]::Round($sum, 2)
+            $sum = ($global:filteredTable | Measure-Object -Property Duration -Sum).Sum
         }
+        $sumFormatted = Format-Duration $sum
         $yearInfo = ""
         if ($global:commentsEnabled -and $global:selectedYears.Count -gt 0 -and $global:selectedYears.Count -lt $global:fileTable.Count) {
             $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
         }
-        $controls.StatusLabel.Text = "Total files: $count | Total size: $sum MB$yearInfo"
+        $controls.StatusLabel.Text = "Total files: $count | Total duration: $sumFormatted$yearInfo"
+    }
+}
+
+function Format-Duration($seconds) {
+    if ($null -eq $seconds -or $seconds -eq 0) { return "00:00:00" }
+
+    # Ensure we have a valid number and convert to integer
+    try {
+        $secondsInt = [int][math]::Floor([double]$seconds)
+        $hours = [int][math]::Floor($secondsInt / 3600)
+        $minutes = [int][math]::Floor(($secondsInt % 3600) / 60)
+        $secs = [int]($secondsInt % 60)
+        return "{0:D2}:{1:D2}:{2:D2}" -f $hours, $minutes, $secs
+    } catch {
+        return "00:00:00"
     }
 }
 
@@ -335,7 +350,7 @@ function Update-ListView {
         $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.UseItemStyleForSubItems = $false
-        $item.SubItems.Add("$($file.SizeMB)")
+        $item.SubItems.Add((Format-Duration $file.Duration))
         $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
@@ -384,7 +399,7 @@ function Update-ListViewPreserveScroll {
         $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
         $item.UseItemStyleForSubItems = $false
-        $item.SubItems.Add("$($file.SizeMB)")
+        $item.SubItems.Add((Format-Duration $file.Duration))
         $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
@@ -498,6 +513,7 @@ function Update-ListViewTextColors {
             $item.SubItems[2].Text = Format-ExtractedDate $file.DisplayDate $true
             $item.SubItems[2].ForeColor = [System.Drawing.Color]::Black
             
+            $item.SubItems[1].Text = Format-Duration $file.Duration
             $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
             
             if ($showComments -and $item.SubItems.Count -gt 3) {
@@ -549,7 +565,7 @@ function Load-CommentsForVisibleItems {
     Write-Host "=== Load-CommentsForVisibleItems called ===" -ForegroundColor Blue
     
     if (-not $global:commentsEnabled) {
-        Write-Host "Comments not enabled, returning" -ForegroundColor Red
+        Write-Host "Metadata not enabled, returning" -ForegroundColor Red
         return
     }
     
@@ -579,7 +595,7 @@ function Load-CommentsForVisibleItems {
     $endIndex = [math]::Min($totalCount - 1, $topItemIndex + $visibleCount - 1)
     $endIndex = [math]::Min($totalCount - 1, $endIndex + 25)  # small buffer
 
-    Write-Host "=== Loading Comments for Visible Items ===" -ForegroundColor Cyan
+    Write-Host "=== Loading Metadata for Visible Items ===" -ForegroundColor Cyan
     Write-Host "Top item index: $topItemIndex, Visible count: $visibleCount" -ForegroundColor Yellow
     Write-Host "Range: $startIndex to $endIndex (with buffer)" -ForegroundColor Yellow
     Write-Host "Total files in filtered table: $totalCount" -ForegroundColor Yellow
@@ -605,8 +621,10 @@ function Load-CommentsForVisibleItems {
                     }
                 }
 
-                Write-Host "Loading comments for: $($file.Name) (index $i)" -ForegroundColor Green
-                $file.Comments = Read-FileComments $file.Path
+                Write-Host "Loading metadata for: $($file.Name) (index $i)" -ForegroundColor Green
+                $metadata = Read-FileMetadata $file.Path
+                $file.Comments = $metadata.Comments
+                $file.Duration = $metadata.Duration
                 $file.CommentsLoaded = $true
                 $loadedCount++
 
@@ -649,20 +667,20 @@ function Load-CommentsForVisibleItems {
 
 function Start-BackgroundCommentLoading {
     Write-Host "=== Start-BackgroundCommentLoading called ===" -ForegroundColor Magenta
-    Write-Host "Comments enabled: $global:commentsEnabled" -ForegroundColor Yellow
+    Write-Host "Metadata enabled: $global:commentsEnabled" -ForegroundColor Yellow
     Write-Host "Already loading: $global:isBackgroundLoading" -ForegroundColor Yellow
     
     if (-not $global:commentsEnabled -or $global:isBackgroundLoading) {
-        Write-Host "Early return - comments disabled or already loading" -ForegroundColor Red
+        Write-Host "Early return - metadata disabled or already loading" -ForegroundColor Red
         return
     }
     
-    # Get count of unloaded comments from ALL files (not just filtered)
+    # Get count of unloaded metadata from ALL files (not just filtered)
     $unloadedCount = ($global:fileTable | Where-Object { -not $_.CommentsLoaded }).Count
-    Write-Host "Unloaded comments count: $unloadedCount" -ForegroundColor Yellow
-    
+    Write-Host "Unloaded metadata count: $unloadedCount" -ForegroundColor Yellow
+
     if ($unloadedCount -eq 0) {
-        Write-Host "No unloaded comments, returning" -ForegroundColor Red
+        Write-Host "No unloaded metadata, returning" -ForegroundColor Red
         return
     }
     
@@ -687,10 +705,10 @@ function Start-BackgroundCommentLoading {
             $fileIndex = $global:backgroundFileIndexes[$global:backgroundCurrentIndex]
             $file = $global:fileTable[$fileIndex]
             
-            Write-Host "Background loading comments for: $($file.Name) (index $($global:backgroundCurrentIndex + 1) of $($global:backgroundFileIndexes.Count))" -ForegroundColor Green
-            
+            Write-Host "Background loading metadata for: $($file.Name) (index $($global:backgroundCurrentIndex + 1) of $($global:backgroundFileIndexes.Count))" -ForegroundColor Green
+
             if ($null -ne $file -and -not $file.CommentsLoaded) {
-                # Load comment using inline function to avoid scope issues
+                # Load metadata using inline function to avoid scope issues
                 try {
                     $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
                     $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
@@ -706,15 +724,27 @@ function Start-BackgroundCommentLoading {
                             } else {
                                 $file.Comments = ""
                             }
+
+                            # Get duration
+                            $properties = $tagFile.Properties
+                            if ($properties) {
+                                $file.Duration = $properties.Duration.TotalSeconds
+                            } else {
+                                $file.Duration = 0
+                            }
+
                             $tagFile.Dispose()
                         } else {
                             $file.Comments = ""
+                            $file.Duration = 0
                         }
                     } else {
                         $file.Comments = ""
+                        $file.Duration = 0
                     }
                 } catch {
                     $file.Comments = ""
+                    $file.Duration = 0
                 }
                 
                 $file.CommentsLoaded = $true
@@ -730,8 +760,8 @@ function Start-BackgroundCommentLoading {
                     $yearInfo = " | Year filter: $($global:selectedYears -join ', ')"
                 }
                 
-                $controls.StatusLabel.Text = "Total files: $($global:filteredTable.Count) | Total size: $([math]::Round(($global:filteredTable | Measure-Object -Property SizeMB -Sum).Sum, 2)) MB$yearInfo | Loading ALL comments: $loadedCount of $totalCount files ($progress%)"
-                 
+                $controls.StatusLabel.Text = "Total files: $($global:filteredTable.Count) | Total duration: $(Format-Duration (($global:filteredTable | Measure-Object -Property Duration -Sum).Sum))$yearInfo | Loading ALL metadata: $loadedCount of $totalCount files ($progress%)"
+
                  # Force UI update
                  [System.Windows.Forms.Application]::DoEvents()
             }
@@ -927,7 +957,7 @@ function Get-DisplayNameFromFileName($fileName) {
     }
 }
 
-function Read-FileComments($filePath) {
+function Read-FileMetadata($filePath) {
     try {
         $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
         $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
@@ -939,54 +969,39 @@ function Read-FileComments($filePath) {
             
             if ($tagFile) {
                 $tags = $tagFile.Tag
-                
-                if ($tags) {
-                    $comments = $tags.Comment
-                    $tagFile.Dispose()
-                    return $comments
-                }
-                
-                $tagFile.Dispose()
-            }
-        }
-    } catch {
-        Write-Host "Error reading comments: $($_.Exception.Message)" -ForegroundColor Red
-    }
-    return ""
-}
+                $properties = $tagFile.Properties
 
-function Write-FileComments($filePath, $comments) {
-    try {
-        $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
-        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
-        
-        if (Test-Path $dllPath) {
-            Add-Type -Path $dllPath
-            
-            $tagFile = [TagLib.File]::Create($filePath)
-            
-            if ($tagFile) {
-                $tags = $tagFile.Tag
-                
+                $result = @{
+                    Comments = ""
+                    Duration = 0
+                }
+
                 if ($tags) {
-                    $tags.Comment = $comments
-                    $tagFile.Save()
-                    $tagFile.Dispose()
-                    return $true
+                    $result.Comments = $tags.Comment
+                    if ($null -eq $result.Comments) { $result.Comments = "" }
+                }
+
+                if ($properties) {
+                    $result.Duration = $properties.Duration.TotalSeconds
                 }
                 
                 $tagFile.Dispose()
+                return $result
             }
         }
     } catch {
-        Write-Host "Error writing comments: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Error reading metadata: $($_.Exception.Message)" -ForegroundColor Red
     }
-    return $false
+
+    return @{
+        Comments = ""
+        Duration = 0
+    }
 }
 
 function Update-CommentsDisplay {
     if (-not $global:commentsEnabled) {
-        Write-Host "Update-CommentsDisplay: Comments not enabled" -ForegroundColor Red
+        Write-Host "Update-CommentsDisplay: Metadata not enabled" -ForegroundColor Red
         return
     }
     
@@ -1009,14 +1024,16 @@ function Update-CommentsDisplay {
                     $global:currentSelectedFile = $file
                     
                     if (-not $file.CommentsLoaded) {
-                        Write-Host "Update-CommentsDisplay: Loading comments for $($file.Name)" -ForegroundColor Cyan
-                        $file.Comments = Read-FileComments $file.Path
+                        Write-Host "Update-CommentsDisplay: Loading metadata for $($file.Name)" -ForegroundColor Cyan
+                        $metadata = Read-FileMetadata $file.Path
+                        $file.Comments = $metadata.Comments
+                        $file.Duration = $metadata.Duration
                         $file.CommentsLoaded = $true
-                        Write-Host "Update-CommentsDisplay: Loaded comments = '$($file.Comments)'" -ForegroundColor Green
-                        
+                        Write-Host "Update-CommentsDisplay: Loaded metadata = '$($file.Comments)'" -ForegroundColor Green
+
                         Update-ListViewTextColors
                     } else {
-                        Write-Host "Update-CommentsDisplay: Using cached comments = '$($file.Comments)'" -ForegroundColor Green
+                        Write-Host "Update-CommentsDisplay: Using cached metadata = '$($file.Comments)'" -ForegroundColor Green
                     }
                     
                     $comments = $file.Comments
@@ -1159,7 +1176,7 @@ function Get-FilesFromFolder {
             
             $fileObj = [PSCustomObject]@{
                 Name   = $displayName
-                SizeMB = [math]::Round($file.Length / 1MB, 2)
+                Duration = 0
                 Path   = $file.FullName
                 CreationTime = $file.CreationTime
                 ExtractedDate = $extractedDate
@@ -1238,7 +1255,7 @@ function BindHandlers {
     $controls.SortSizeRadio.Add_CheckedChanged({
         if ($controls.SortSizeRadio.Checked) {
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            $global:filteredTable = $global:filteredTable | Sort-Object SizeMB -Descending
+            $global:filteredTable = $global:filteredTable | Sort-Object Duration -Descending
             Update-ListView
             $form.Cursor = [System.Windows.Forms.Cursors]::Default
         }
@@ -1404,10 +1421,10 @@ function BindHandlers {
             
             $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
             
-            Write-Host "=== Manual Comments Loading Started ===" -ForegroundColor Cyan
+            Write-Host "=== Manual Metadata Loading Started ===" -ForegroundColor Cyan
             Load-CommentsForVisibleItems
-            Write-Host "=== Manual Comments Loading Completed ===" -ForegroundColor Cyan
-            
+            Write-Host "=== Manual Metadata Loading Completed ===" -ForegroundColor Cyan
+
             $controls.UpdateCommentsBtn.Text = $originalText
             $controls.UpdateCommentsBtn.Enabled = $false  # Disable after update
             $form.Cursor = [System.Windows.Forms.Cursors]::Default
@@ -1520,7 +1537,7 @@ $form.Add_Resize({
                     
                     if ($availableWidth -gt 50) {
                         $controls.YearFilterListView.Columns[0].Width = $availableWidth
-                                         }
+                     }
                  }
                 }
             }
