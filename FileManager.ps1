@@ -536,7 +536,7 @@ function Update-ListViewTextColors {
     
     if ($global:commentsEnabled) {
         $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
         $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
         
         if ($showComments -and $controls.ListView.Columns.Count -gt 3) {
@@ -1489,25 +1489,8 @@ $form.Add_Resize({
         
         if ($global:commentsEnabled) {
             $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-            $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+            $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
             $controls.ListView.Columns[2].Width = 100  # Fixed width for Created column
-            
-            if ($controls.ListView.Columns.Count -gt 3) {
-                # Calculate available width for comments column with scrollbar consideration
-                $totalWidth = $controls.ListView.Width
-                $col0Width = $controls.ListView.Columns[0].Width
-                $col1Width = $controls.ListView.Columns[1].Width
-                $col2Width = $controls.ListView.Columns[2].Width
-                
-                # Account for scrollbar width (typically 17-20px) and some padding
-                $scrollbarWidth = 20
-                $padding = 5
-                $availableWidth = $totalWidth - $col0Width - $col1Width - $col2Width - $scrollbarWidth - $padding
-                
-                if ($availableWidth -gt 50) { # Minimum width check
-                    $controls.ListView.Columns[3].Width = $availableWidth
-                }
-            }
             
             # Update Year Filter ListView height to fill remaining space
             # Calculate the exact position where YearFilterListView should start
