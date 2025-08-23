@@ -861,14 +861,46 @@ function Get-DisplayNameFromFileName($fileName) {
     $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
     $extension = [System.IO.Path]::GetExtension($fileName).ToLower()
     
-    # Special handling for MP3 files with parentheses pattern
-    if ($extension -eq ".mp3" -and $nameWithoutExt -match "(.+?)\((.+?)\)") {
-        $beforeParentheses = $matches[1]
-        $insideParentheses = $matches[2]
-        
-        # If content inside parentheses equals content before parentheses, return only the content inside
-        if ($beforeParentheses -eq $insideParentheses) {
-            return $insideParentheses
+    # Special handling for MP3 files
+    if ($extension -eq ".mp3") {
+        # Check if first character is not a letter
+        if ($nameWithoutExt.Length -gt 0 -and -not [char]::IsLetter($nameWithoutExt[0])) {
+            # Step 1: Parse string by "_" character
+            $parts = $nameWithoutExt -split "_"
+            if ($parts.Count -gt 0) {
+                # Step 2: Take first element
+                $firstElement = $parts[0]
+
+                # Step 3: Remove all brackets
+                $withoutBrackets = $firstElement -replace "[\(\)\[\]{}]", ""
+
+                # Step 4: Split into 2 parts and compare
+                if ($withoutBrackets.Length -gt 0) {
+                    $halfLength = [math]::Floor($withoutBrackets.Length / 2)
+                    if ($halfLength -gt 0 -and $withoutBrackets.Length -eq $halfLength * 2) {
+                        $firstHalf = $withoutBrackets.Substring(0, $halfLength)
+                        $secondHalf = $withoutBrackets.Substring($halfLength, $halfLength)
+
+                        # If both parts are equal, return first part
+                        if ($firstHalf -eq $secondHalf) {
+                            return $firstHalf
+                        }
+                    }
+                }
+            }
+            # If conditions not met, return full filename
+            return $fileName
+        }
+
+        # Original MP3 logic for files starting with letter or with parentheses pattern
+        if ($nameWithoutExt -match "(.+?)\((.+?)\)") {
+            $beforeParentheses = $matches[1]
+            $insideParentheses = $matches[2]
+
+            # If content inside parentheses equals content before parentheses, return only the content inside
+            if ($beforeParentheses -eq $insideParentheses) {
+                return $insideParentheses
+            }
         }
     }
     
