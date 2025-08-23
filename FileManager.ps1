@@ -4,7 +4,6 @@ Add-Type -AssemblyName Microsoft.VisualBasic
 $global:folderPath = "G:\My Drive\recordings"
 $global:fontSize = 14
 $global:fontFamily = "Segoe UI"
-$global:commentsEnabled = $false
 $global:fileTable = @()
 $global:filteredTable = @()
 $global:activeSortButton = $null
@@ -18,6 +17,49 @@ $global:backgroundTimer = $null  # Timer for async comment loading
 $global:isBackgroundLoading = $false  # Flag to track background loading state
 $global:backgroundFileIndexes = @()  # Array of file indexes to process
 $global:backgroundCurrentIndex = 0  # Current index being processed
+$global:commentsEnabled = $true  # Add this variable for background loading
+
+function Test-Requirements {
+    # Check TagLib installation
+    $tagLibModule = Get-Module -Name TagLibCli -ListAvailable
+    if (-not $tagLibModule) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "TagLib is required for this application to work.`n`nPlease install TagLib by following the instructions at:`nhttps://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md`n`nClick OK to open the installation guide.",
+            "TagLib Required",
+            [System.Windows.Forms.MessageBoxButtons]::OKCancel,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
+        }
+        return $false
+    }
+
+    # Check if DLL exists
+    $moduleDir = Split-Path $tagLibModule.Path -Parent
+    $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+    if (-not (Test-Path $dllPath)) {
+        $result = [System.Windows.Forms.MessageBox]::Show(
+            "TagLib is required for this application to work.`n`nPlease install TagLib by following the instructions at:`nhttps://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md`n`nClick OK to open the installation guide.",
+            "TagLib Required",
+            [System.Windows.Forms.MessageBoxButtons]::OKCancel,
+            [System.Windows.Forms.MessageBoxIcon]::Warning
+        )
+
+        if ($result -eq [System.Windows.Forms.DialogResult]::OK) {
+            Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
+        }
+        return $false
+    }
+
+    return $true
+}
+
+# Check requirements at startup - exit if not met
+if (-not (Test-Requirements)) {
+    exit
+}
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -32,33 +74,6 @@ $toolTip = New-Object System.Windows.Forms.ToolTip
 $toolTip.AutoPopDelay = 5000
 $toolTip.InitialDelay = 1000
 $toolTip.ReshowDelay = 500
-
-function Test-Requirements {
-    $requirementsMet = $true
-    $messages = @()
-    
-    # Check TagLib installation
-    $tagLibModule = Get-Module -Name TagLibCli -ListAvailable
-    if (-not $tagLibModule) {
-        $requirementsMet = $false
-        $messages += "TagLibCli module not found. Please install it with: Install-Module -Name TagLibCli -Force"
-    } else {
-        # Check if DLL exists
-        $moduleDir = Split-Path $tagLibModule.Path -Parent
-        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
-        if (-not (Test-Path $dllPath)) {
-            $requirementsMet = $false
-            $messages += "TagLibSharp.dll not found in module directory. Comments functionality will be disabled"
-        }
-    }
-    
-    # Show messages in tray
-    foreach ($message in $messages) {
-        Show-TrayNotification -Title "Requirements Check" -Message $message -Type "Info"
-    }
-    
-    return $requirementsMet
-}
 
 function CreateControls {
     $gap = [int]($global:fontSize * 0.8)
@@ -120,55 +135,53 @@ function CreateControls {
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-     if ($global:commentsEnabled) {
-         $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
-         $controls.CommentsBox.Multiline = $true
-         $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
-         $controls.CommentsBox.ReadOnly = $false
-         $controls.CommentsBox.Text = ""
-         $form.Controls.Add($controls.CommentsBox)
-         $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
-         $y += 150 + $gap
- 
-         $controls.SaveCommentsBtn = New-Object Windows.Forms.Button
-         $controls.SaveCommentsBtn.Text = "Save"
-         $controls.SaveCommentsBtn.Enabled = $false
-         $form.Controls.Add($controls.SaveCommentsBtn)
-         $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-         $y += $btnH + $gap
- 
-         $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
-         $controls.UpdateCommentsBtn.Text = "Update"
-         $controls.UpdateCommentsBtn.Enabled = $true
-         $controls.UpdateCommentsBtn.Visible = $true
-         $form.Controls.Add($controls.UpdateCommentsBtn)
-         $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-         $y += $btnH + $gap
-         
-         # Add Filter GroupBox
-         $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
-         $controls.FilterGroupBox = New-Object Windows.Forms.GroupBox
-         $controls.FilterGroupBox.Text = "Filter"
-         $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
-         $form.Controls.Add($controls.FilterGroupBox)
+     $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
+    $controls.CommentsBox.Multiline = $true
+    $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
+    $controls.CommentsBox.ReadOnly = $false
+    $controls.CommentsBox.Text = ""
+    $form.Controls.Add($controls.CommentsBox)
+    $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
+    $y += 150 + $gap
 
-         $filterRadioY = 25  # Increased from 20 to 25
-         $controls.ThisYearRadio = New-Object Windows.Forms.RadioButton
-         $controls.ThisYearRadio.Text = "Last 20"
-         $controls.ThisYearRadio.AutoSize = $false
-         $controls.ThisYearRadio.Checked = $true
-         $controls.FilterGroupBox.Controls.Add($controls.ThisYearRadio)
-         $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
-         $filterRadioY += $btnH + $gap
+    $controls.SaveCommentsBtn = New-Object Windows.Forms.Button
+    $controls.SaveCommentsBtn.Text = "Save"
+    $controls.SaveCommentsBtn.Enabled = $false
+    $form.Controls.Add($controls.SaveCommentsBtn)
+    $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
 
-         $controls.AllYearsRadio = New-Object Windows.Forms.RadioButton
-         $controls.AllYearsRadio.Text = "All"
-         $controls.AllYearsRadio.AutoSize = $false
-         $controls.FilterGroupBox.Controls.Add($controls.AllYearsRadio)
-         $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+    $controls.UpdateCommentsBtn = New-Object Windows.Forms.Button
+    $controls.UpdateCommentsBtn.Text = "Update"
+    $controls.UpdateCommentsBtn.Enabled = $true
+    $controls.UpdateCommentsBtn.Visible = $true
+    $form.Controls.Add($controls.UpdateCommentsBtn)
+    $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
 
-         $y += $filterGroupHeight + $gap
-     }
+    # Add Filter GroupBox
+    $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
+    $controls.FilterGroupBox = New-Object Windows.Forms.GroupBox
+    $controls.FilterGroupBox.Text = "Filter"
+    $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
+    $form.Controls.Add($controls.FilterGroupBox)
+
+    $filterRadioY = 25  # Increased from 20 to 25
+    $controls.ThisYearRadio = New-Object Windows.Forms.RadioButton
+    $controls.ThisYearRadio.Text = "Last 20"
+    $controls.ThisYearRadio.AutoSize = $false
+    $controls.ThisYearRadio.Checked = $true
+    $controls.FilterGroupBox.Controls.Add($controls.ThisYearRadio)
+    $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+    $filterRadioY += $btnH + $gap
+
+    $controls.AllYearsRadio = New-Object Windows.Forms.RadioButton
+    $controls.AllYearsRadio.Text = "All"
+    $controls.AllYearsRadio.AutoSize = $false
+    $controls.FilterGroupBox.Controls.Add($controls.AllYearsRadio)
+    $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+
+    $y += $filterGroupHeight + $gap
 
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
     
@@ -213,9 +226,7 @@ function CreateControls {
     $controls.ListView.Columns.Add("Duration", 100) | Out-Null
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
     
-    if ($global:commentsEnabled) {
-        $controls.ListView.Columns.Add("Comments", 500) | Out-Null
-    }
+    $controls.ListView.Columns.Add("Comments", 500) | Out-Null
 
     $selectFolderTooltip = @"
 Allows you to select another folder to display and work with its files.
@@ -242,13 +253,11 @@ Sorts the file list by creation date (newest first).
     $toolTip.SetToolTip($controls.SortSizeRadio, $sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedRadio, $sortCreatedTooltip.Trim())
 
-    if ($global:commentsEnabled) {
-        $updateTooltip = @"
+    $updateTooltip = @"
 Loads metadata for visible files in the list.
 Metadata is loaded on-demand to improve performance.
 "@
-        $toolTip.SetToolTip($controls.UpdateCommentsBtn, $updateTooltip.Trim())
-    }
+    $toolTip.SetToolTip($controls.UpdateCommentsBtn, $updateTooltip.Trim())
 }
 
 function LayoutOnlyFonts {
@@ -280,25 +289,23 @@ function LayoutOnlyFonts {
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-    if ($global:commentsEnabled) {
-        $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
-        $y += 150 + $gap
-        $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-        $y += $btnH + $gap
-        $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
-        $y += $btnH + $gap
+    $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
+    $y += 150 + $gap
+    $controls.SaveCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
+    $controls.UpdateCommentsBtn.SetBounds($x, $y, $btnW, $btnH)
+    $y += $btnH + $gap
 
-        # Update Filter GroupBox layout
-        $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
-        $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
+    # Update Filter GroupBox layout
+    $filterGroupHeight = $btnH * 2 + $gap + 30  # Increased padding from 20 to 30
+    $controls.FilterGroupBox.SetBounds($x, $y, $btnW, $filterGroupHeight)
 
-        $filterRadioY = 25  # Increased from 20 to 25
-        $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
-        $filterRadioY += $btnH + $gap
-        $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+    $filterRadioY = 25  # Increased from 20 to 25
+    $controls.ThisYearRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
+    $filterRadioY += $btnH + $gap
+    $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
 
-        $y += $filterGroupHeight + $gap
-    }
+    $y += $filterGroupHeight + $gap
 
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
@@ -312,14 +319,12 @@ function LayoutOnlyFonts {
     $controls.SortSizeRadio.Font = $font
     $controls.SortCreatedRadio.Font = $font
     $controls.SelectFolder.Font = $font
-         if ($global:commentsEnabled) {
          $controls.CommentsBox.Font = $font
-         $controls.SaveCommentsBtn.Font = $font
-         $controls.UpdateCommentsBtn.Font = $font
-         $controls.FilterGroupBox.Font = $font
-         $controls.ThisYearRadio.Font = $font
-         $controls.AllYearsRadio.Font = $font
-     }
+    $controls.SaveCommentsBtn.Font = $font
+    $controls.UpdateCommentsBtn.Font = $font
+    $controls.FilterGroupBox.Font = $font
+    $controls.ThisYearRadio.Font = $font
+    $controls.AllYearsRadio.Font = $font
     $controls.StatusLabel.Font = $font
 }
 
@@ -348,7 +353,7 @@ function Update-InfoLabels {
         }
         $sumFormatted = Format-Duration $sum
         $yearInfo = ""
-        if ($global:commentsEnabled -and $controls.ThisYearRadio.Checked) {
+        if ($controls.ThisYearRadio.Checked) {
             $yearInfo = " | Filter: Last 20"
         }
         $controls.StatusLabel.Text = "Total files: $count | Total duration: $sumFormatted$yearInfo"
@@ -373,8 +378,6 @@ function Format-Duration($seconds) {
 function Update-ListView {
     $controls.ListView.Items.Clear()
     
-    $showComments = $global:commentsEnabled
-    
     foreach ($file in $global:filteredTable) {
         $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
@@ -383,20 +386,18 @@ function Update-ListView {
         $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
-        if ($showComments) {
-            if ($file.CommentsLoaded) {
-                $comments = $file.Comments
-                if ($null -eq $comments) { $comments = "" }
-            } else {
-                $comments = "not updated"
-            }
-            $item.SubItems.Add($comments)
-            
-            if ($file.CommentsLoaded) {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
-            } else {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray
-            }
+        if ($file.CommentsLoaded) {
+            $comments = $file.Comments
+            if ($null -eq $comments) { $comments = "" }
+        } else {
+            $comments = "not updated"
+        }
+        $item.SubItems.Add($comments)
+
+        if ($file.CommentsLoaded) {
+            $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+        } else {
+            $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray
         }
         
         $controls.ListView.Items.Add($item) | Out-Null
@@ -422,8 +423,6 @@ function Update-ListViewPreserveScroll {
     
     $controls.ListView.Items.Clear()
     
-    $showComments = $global:commentsEnabled
-    
     foreach ($file in $global:filteredTable) {
         $displayName = $file.Name
         $item = New-Object Windows.Forms.ListViewItem($displayName)
@@ -432,20 +431,18 @@ function Update-ListViewPreserveScroll {
         $displayDate = Format-ExtractedDate $file.DisplayDate $true
         $item.SubItems.Add($displayDate)
         
-        if ($showComments) {
-            if ($file.CommentsLoaded) {
-                $comments = $file.Comments
-                if ($null -eq $comments) { $comments = "" }
-            } else {
-                $comments = "not updated"
-            }
-            $item.SubItems.Add($comments)
-            
-            if ($file.CommentsLoaded) {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
-            } else {
-                $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray
-            }
+        if ($file.CommentsLoaded) {
+            $comments = $file.Comments
+            if ($null -eq $comments) { $comments = "" }
+        } else {
+            $comments = "not updated"
+        }
+        $item.SubItems.Add($comments)
+
+        if ($file.CommentsLoaded) {
+            $item.SubItems[3].ForeColor = [System.Drawing.Color]::Black
+        } else {
+            $item.SubItems[3].ForeColor = [System.Drawing.Color]::LightGray
         }
         
         $controls.ListView.Items.Add($item) | Out-Null
@@ -469,17 +466,7 @@ function Update-ListViewPreserveScroll {
     Update-ListViewTextColors
 }
 
-function Update-YearFilterList {
-    # This function is no longer needed but kept for compatibility
-    return
-}
-
 function Apply-YearFilter {
-    if (-not $global:commentsEnabled) {
-        $global:filteredTable = $global:fileTable
-        return
-    }
-    
     if ($controls.ThisYearRadio.Checked) {
         # Show last 20 records sorted by date (newest first)
         $global:filteredTable = $global:fileTable |
@@ -492,8 +479,6 @@ function Apply-YearFilter {
 }
 
 function Update-ListViewTextColors {
-    $showComments = $global:commentsEnabled
-    
     foreach ($item in $controls.ListView.Items) {
         $fileIndex = $item.Index
         if ($fileIndex -lt $global:filteredTable.Count) {
@@ -508,7 +493,7 @@ function Update-ListViewTextColors {
             $item.SubItems[1].Text = Format-Duration $file.Duration
             $item.SubItems[1].ForeColor = [System.Drawing.Color]::Black
             
-            if ($showComments -and $item.SubItems.Count -gt 3) {
+            if ($item.SubItems.Count -gt 3) {
                 if ($file.CommentsLoaded) {
                     $comments = $file.Comments
                     if ($null -eq $comments) { $comments = "" }
@@ -526,40 +511,30 @@ function Update-ListViewTextColors {
         }
     }
     
-    if ($global:commentsEnabled) {
-        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
-        $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        
-        if ($showComments -and $controls.ListView.Columns.Count -gt 3) {
-            # Calculate available width for comments column with scrollbar consideration
-            $totalWidth = $controls.ListView.Width
-            $col0Width = $controls.ListView.Columns[0].Width
-            $col1Width = $controls.ListView.Columns[1].Width
-            $col2Width = $controls.ListView.Columns[2].Width
-            
-            # Account for scrollbar width (typically 17-20px) and some padding
-            $scrollbarWidth = 20
-            $padding = 5
-            $availableWidth = $totalWidth - $col0Width - $col1Width - $col2Width - $scrollbarWidth - $padding
-            
-            if ($availableWidth -gt 50) { # Minimum width check
-                $controls.ListView.Columns[3].Width = $availableWidth
-            }
+    $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+    $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
+    $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+
+    if ($controls.ListView.Columns.Count -gt 3) {
+        # Calculate available width for comments column with scrollbar consideration
+        $totalWidth = $controls.ListView.Width
+        $col0Width = $controls.ListView.Columns[0].Width
+        $col1Width = $controls.ListView.Columns[1].Width
+        $col2Width = $controls.ListView.Columns[2].Width
+
+        # Account for scrollbar width (typically 17-20px) and some padding
+        $scrollbarWidth = 20
+        $padding = 5
+        $availableWidth = $totalWidth - $col0Width - $col1Width - $col2Width - $scrollbarWidth - $padding
+
+        if ($availableWidth -gt 50) { # Minimum width check
+            $controls.ListView.Columns[3].Width = $availableWidth
         }
-    } else {
-        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        $controls.ListView.AutoResizeColumn(2, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
     }
 }
 
 function Load-CommentsForVisibleItems {
     Write-Host "=== Load-CommentsForVisibleItems called ===" -ForegroundColor Blue
-    
-    if (-not $global:commentsEnabled) {
-        Write-Host "Metadata not enabled, returning" -ForegroundColor Red
-        return
-    }
     
     # Ensure filtered table exists
     if (-not $global:filteredTable) { $global:filteredTable = @() }
@@ -659,11 +634,11 @@ function Load-CommentsForVisibleItems {
 
 function Start-BackgroundCommentLoading {
     Write-Host "=== Start-BackgroundCommentLoading called ===" -ForegroundColor Magenta
-    Write-Host "Metadata enabled: $global:commentsEnabled" -ForegroundColor Yellow
+    Write-Host "Comments enabled: $global:commentsEnabled" -ForegroundColor Yellow
     Write-Host "Already loading: $global:isBackgroundLoading" -ForegroundColor Yellow
     
     if (-not $global:commentsEnabled -or $global:isBackgroundLoading) {
-        Write-Host "Early return - metadata disabled or already loading" -ForegroundColor Red
+        Write-Host "Early return - comments disabled or already loading" -ForegroundColor Red
         return
     }
     
@@ -1041,11 +1016,6 @@ function Write-FileMetadata($filePath, $comments) {
 }
 
 function Update-CommentsDisplay {
-    if (-not $global:commentsEnabled) {
-        Write-Host "Update-CommentsDisplay: Metadata not enabled" -ForegroundColor Red
-        return
-    }
-    
     $selectedCount = $controls.ListView.SelectedItems.Count
     Write-Host "Update-CommentsDisplay: Selected count = $selectedCount" -ForegroundColor Yellow
     
@@ -1111,70 +1081,6 @@ function Update-CommentsDisplay {
     }
 }
 
- 
-
-function Show-TrayNotification {
-    param(
-        [string]$Title,
-        [string]$Message,
-        [int]$Duration = 3000,
-        [string]$Type = "Info"
-    )
-
-    # Log to console
-    Write-Host "[$Type] $Title`: $Message"
-
-    try {
-        Add-Type -AssemblyName System.Windows.Forms
-        $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
-
-        # Set icon based on type
-        switch ($Type) {
-            "Error" {
-                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error
-                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Error
-            }
-            default {
-                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
-                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
-            }
-        }
-
-        $notifyIcon.Visible = $true
-        $notifyIcon.ShowBalloonTip($Duration, $Title, $Message, $toolTipIcon)
-
-        # Use a timer to dispose the notification asynchronously instead of blocking
-        $timer = New-Object System.Windows.Forms.Timer
-        $timer.Interval = $Duration
-
-        # Capture variables in closure to avoid scope issues
-        $localNotifyIcon = $notifyIcon
-        $localTimer = $timer
-
-        $timer.Add_Tick({
-            try {
-                if ($null -ne $localNotifyIcon -and -not $localNotifyIcon.IsDisposed) {
-                    $localNotifyIcon.Dispose()
-                }
-            } catch {
-                # Ignore disposal errors
-            }
-            try {
-                if ($null -ne $localTimer -and -not $localTimer.IsDisposed) {
-                    $localTimer.Dispose()
-                }
-            } catch {
-                # Ignore disposal errors
-            }
-        })
-        $timer.Start()
-
-    } catch {
-        $messageBoxIcon = if ($Type -eq "Error") { 'Error' } else { 'Information' }
-        [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', $messageBoxIcon) | Out-Null
-    }
-}
-
 function Rename-CallRecordingFiles {
     if (-not (Test-Path $global:folderPath)) {
         return
@@ -1234,12 +1140,8 @@ function Get-FilesFromFolder {
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         
         # Apply year filter
-        if ($global:commentsEnabled) {
-            Apply-YearFilter
-        } else {
-            $global:filteredTable = $global:fileTable
-        }
-        
+        Apply-YearFilter
+
         Update-ListView
     } else {
         $global:fileTable = @()
@@ -1369,160 +1271,151 @@ function BindHandlers {
         $currentTop = $controls.ListView.TopItem
         if ($currentTop -and $currentTop.Index -ne $global:lastScrollTop) {
             $global:lastScrollTop = $currentTop.Index
-            if ($global:commentsEnabled) {
-                # Enable the Update button when scrolling occurs
-                $controls.UpdateCommentsBtn.Enabled = $true
-                $controls.UpdateCommentsBtn.PerformClick()
-            }
+            # Enable the Update button when scrolling occurs
+            $controls.UpdateCommentsBtn.Enabled = $true
+            $controls.UpdateCommentsBtn.PerformClick()
         }
         $global:scrollTimer.Stop()
     })
 
     # Add mouse wheel event handler for scroll detection
     $controls.ListView.Add_MouseWheel({
-        if ($global:commentsEnabled) {
-            # Enable the Update button when scrolling occurs
+        # Enable the Update button when scrolling occurs
+        $controls.UpdateCommentsBtn.Enabled = $true
+        $global:scrollTimer.Stop()
+        $global:scrollTimer.Start()
+    })
+
+    # Add mouse capture changed event handler to detect scrollbar dragging
+    $controls.ListView.Add_MouseCaptureChanged({
+        $currentTop = $controls.ListView.TopItem
+        $currentIndex = if ($currentTop) { $currentTop.Index } else { -1 }
+        if ($currentTop -and $currentIndex -ne $global:lastScrollTop) {
+            # Enable the Update button only when scroll position changed
             $controls.UpdateCommentsBtn.Enabled = $true
             $global:scrollTimer.Stop()
             $global:scrollTimer.Start()
         }
     })
 
-    # Add mouse capture changed event handler to detect scrollbar dragging
-    $controls.ListView.Add_MouseCaptureChanged({
-        if ($global:commentsEnabled) {
-            $currentTop = $controls.ListView.TopItem
-            $currentIndex = if ($currentTop) { $currentTop.Index } else { -1 }
-            if ($currentTop -and $currentIndex -ne $global:lastScrollTop) {
-                # Enable the Update button only when scroll position changed
-                $controls.UpdateCommentsBtn.Enabled = $true
-                $global:scrollTimer.Stop()
-                $global:scrollTimer.Start()
+    $controls.SaveCommentsBtn.Add_Click({
+        if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
+            $newComments = $controls.CommentsBox.Text
+
+            if (-not [string]::IsNullOrWhiteSpace($newComments)) {
+                $controls.SaveCommentsBtn.Enabled = $false
+                $originalText = $controls.SaveCommentsBtn.Text
+                $controls.SaveCommentsBtn.Text = "Saving..."
+
+                [System.Windows.Forms.Application]::DoEvents()
+
+                $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
+
+                Write-Host "=== Saving Comments Started ===" -ForegroundColor Cyan
+                $success = Write-FileMetadata $global:currentSelectedFile.Path $newComments
+                Write-Host "=== Saving Comments Completed ===" -ForegroundColor Cyan
+
+                 $controls.SaveCommentsBtn.Text = $originalText
+                 $form.Cursor = [System.Windows.Forms.Cursors]::Default
+
+                 [System.Windows.Forms.Application]::DoEvents()
+
+                 if ($success) {
+                     $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                     Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
+                     $global:originalCommentsText = $newComments
+
+                     $global:currentSelectedFile.Comments = $newComments
+                     $global:currentSelectedFile.CommentsLoaded = $true
+
+                     Update-ListViewTextColors
+
+                     $controls.SaveCommentsBtn.Enabled = $false
+                 } else {
+                    $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
+                    Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
+                }
+            } else {
+                Show-TrayNotification -Title "Error" -Message "Cannot save empty comments" -Type "Error"
             }
         }
     })
 
+    $controls.UpdateCommentsBtn.Add_Click({
+        $controls.UpdateCommentsBtn.Enabled = $false
+        $originalText = $controls.UpdateCommentsBtn.Text
+        $controls.UpdateCommentsBtn.Text = "Loading..."
 
-    if ($global:commentsEnabled) {
-        $controls.SaveCommentsBtn.Add_Click({
-            if ($global:currentSelectedFile -and $controls.CommentsBox.Text -ne $global:originalCommentsText) {
-                $newComments = $controls.CommentsBox.Text
-                
-                if (-not [string]::IsNullOrWhiteSpace($newComments)) {
-                    $controls.SaveCommentsBtn.Enabled = $false
-                    $originalText = $controls.SaveCommentsBtn.Text
-                    $controls.SaveCommentsBtn.Text = "Saving..."
-                    
-                    [System.Windows.Forms.Application]::DoEvents()
-                    
-                    $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-                    
-                    Write-Host "=== Saving Comments Started ===" -ForegroundColor Cyan
-                    $success = Write-FileMetadata $global:currentSelectedFile.Path $newComments
-                    Write-Host "=== Saving Comments Completed ===" -ForegroundColor Cyan
-                    
-                     $controls.SaveCommentsBtn.Text = $originalText
-                     $form.Cursor = [System.Windows.Forms.Cursors]::Default
-                     
-                     [System.Windows.Forms.Application]::DoEvents()
-                     
-                     if ($success) {
-                         $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
-                         Show-TrayNotification -Title "Comments Updated" -Message "Comments for '$fileName' successfully saved."
-                         $global:originalCommentsText = $newComments
-                         
-                         $global:currentSelectedFile.Comments = $newComments
-                         $global:currentSelectedFile.CommentsLoaded = $true
-                         
-                         Update-ListViewTextColors
-                         
-                         $controls.SaveCommentsBtn.Enabled = $false
-                     } else {
-                        $fileName = [System.IO.Path]::GetFileName($global:currentSelectedFile.Path)
-                        Show-TrayNotification -Title "Error" -Message "Failed to save comments for '$fileName'" -Type "Error"
-                    }
-                } else {
-                    Show-TrayNotification -Title "Error" -Message "Cannot save empty comments" -Type "Error"
-                }
-            }
-        })
+        [System.Windows.Forms.Application]::DoEvents()
 
-        $controls.UpdateCommentsBtn.Add_Click({
-            $controls.UpdateCommentsBtn.Enabled = $false
-            $originalText = $controls.UpdateCommentsBtn.Text
-            $controls.UpdateCommentsBtn.Text = "Loading..."
-            
-            [System.Windows.Forms.Application]::DoEvents()
-            
-            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            
-            Write-Host "=== Manual Metadata Loading Started ===" -ForegroundColor Cyan
-            Load-CommentsForVisibleItems
-            Write-Host "=== Manual Metadata Loading Completed ===" -ForegroundColor Cyan
+        $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
 
-            $controls.UpdateCommentsBtn.Text = $originalText
-            $controls.UpdateCommentsBtn.Enabled = $false  # Disable after update
-            $form.Cursor = [System.Windows.Forms.Cursors]::Default
-            
-            [System.Windows.Forms.Application]::DoEvents()
-        })
+        Write-Host "=== Manual Metadata Loading Started ===" -ForegroundColor Cyan
+        Load-CommentsForVisibleItems
+        Write-Host "=== Manual Metadata Loading Completed ===" -ForegroundColor Cyan
 
-        $controls.CommentsBox.Add_TextChanged({
-            if ($global:currentSelectedFile) {
-                $currentText = $controls.CommentsBox.Text
-                $originalText = $global:originalCommentsText
-                
-                $isDifferent = $currentText -ne $originalText
-                $isNotEmpty = -not [string]::IsNullOrWhiteSpace($currentText)
-                
-                $controls.SaveCommentsBtn.Enabled = $isDifferent -and $isNotEmpty
-            }
-        })
-    }
-    
-             $controls.AboutLink.Add_Click({
-             Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
-         })
-         
-         # Add year filter change handlers
-         $controls.ThisYearRadio.Add_CheckedChanged({
-             if ($controls.ThisYearRadio.Checked) {
-                 # Stop any ongoing background comment loading
-                 Stop-BackgroundCommentLoading
+        $controls.UpdateCommentsBtn.Text = $originalText
+        $controls.UpdateCommentsBtn.Enabled = $false  # Disable after update
+        $form.Cursor = [System.Windows.Forms.Cursors]::Default
 
-                 # Apply filter and update main list
-                 Apply-YearFilter
-                 Update-ListView
+        [System.Windows.Forms.Application]::DoEvents()
+    })
 
-                 # Auto-load comments for visible items after year filter change
-                 if ($controls.ListView.Items.Count -gt 0) {
-                     $controls.UpdateCommentsBtn.Enabled = $true
-                     $controls.UpdateCommentsBtn.PerformClick()
-                 } else {
-                     $controls.UpdateCommentsBtn.Enabled = $false
-                 }
+    $controls.CommentsBox.Add_TextChanged({
+        if ($global:currentSelectedFile) {
+            $currentText = $controls.CommentsBox.Text
+            $originalText = $global:originalCommentsText
+
+            $isDifferent = $currentText -ne $originalText
+            $isNotEmpty = -not [string]::IsNullOrWhiteSpace($currentText)
+
+            $controls.SaveCommentsBtn.Enabled = $isDifferent -and $isNotEmpty
+        }
+    })
+
+         $controls.AboutLink.Add_Click({
+         Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
+     })
+
+     # Add year filter change handlers
+     $controls.ThisYearRadio.Add_CheckedChanged({
+         if ($controls.ThisYearRadio.Checked) {
+             # Stop any ongoing background comment loading
+             Stop-BackgroundCommentLoading
+
+             # Apply filter and update main list
+             Apply-YearFilter
+             Update-ListView
+
+             # Auto-load comments for visible items after year filter change
+             if ($controls.ListView.Items.Count -gt 0) {
+                 $controls.UpdateCommentsBtn.Enabled = $true
+                 $controls.UpdateCommentsBtn.PerformClick()
+             } else {
+                 $controls.UpdateCommentsBtn.Enabled = $false
              }
-         })
+         }
+     })
 
-         $controls.AllYearsRadio.Add_CheckedChanged({
-             if ($controls.AllYearsRadio.Checked) {
-                 # Stop any ongoing background comment loading
-                 Stop-BackgroundCommentLoading
-                 
-                 # Apply filter and update main list
-                 Apply-YearFilter
-                 Update-ListView
+     $controls.AllYearsRadio.Add_CheckedChanged({
+         if ($controls.AllYearsRadio.Checked) {
+             # Stop any ongoing background comment loading
+             Stop-BackgroundCommentLoading
 
-                 # Auto-load comments for visible items after year filter change
-                 if ($controls.ListView.Items.Count -gt 0) {
-                     $controls.UpdateCommentsBtn.Enabled = $true
-                     $controls.UpdateCommentsBtn.PerformClick()
-                 } else {
-                     $controls.UpdateCommentsBtn.Enabled = $false
-                 }
+             # Apply filter and update main list
+             Apply-YearFilter
+             Update-ListView
+
+             # Auto-load comments for visible items after year filter change
+             if ($controls.ListView.Items.Count -gt 0) {
+                 $controls.UpdateCommentsBtn.Enabled = $true
+                 $controls.UpdateCommentsBtn.PerformClick()
+             } else {
+                 $controls.UpdateCommentsBtn.Enabled = $false
              }
-         })
-     }
+         }
+     })
+}
 
 $form.Add_Resize({
     if ($null -ne $controls.ListView) {
@@ -1533,21 +1426,15 @@ $form.Add_Resize({
         $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
         $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
         
-        if ($global:commentsEnabled) {
-            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-            $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
-            $controls.ListView.Columns[2].Width = 100  # Fixed width for Created column
-        } else {
-            $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
-        }
+        $controls.ListView.AutoResizeColumn(0, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::ColumnContent)
+        $controls.ListView.AutoResizeColumn(1, [System.Windows.Forms.ColumnHeaderAutoResizeStyle]::HeaderSize)
+        $controls.ListView.Columns[2].Width = 100  # Fixed width for Created column
     }
 })
 
 $form.Topmost = $false
 
 $form.Add_Shown({
-    $global:commentsEnabled = Test-Requirements
-    
     CreateControls
     Set-AllFonts $global:fontSize
     BindHandlers
@@ -1561,12 +1448,10 @@ $form.Add_Shown({
     }
     
     # Auto-load comments for visible items on startup
-    if ($global:commentsEnabled) {
-        $controls.UpdateCommentsBtn.PerformClick()
+    $controls.UpdateCommentsBtn.PerformClick()
 
-        # Ensure proper layout after form is fully shown
-        LayoutOnlyFonts
-    }
+    # Ensure proper layout after form is fully shown
+    LayoutOnlyFonts
 
     $form.Activate()
  })
