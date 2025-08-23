@@ -165,12 +165,15 @@ function CreateControls {
     $controls.StatusLabel.Spring = $true
     $controls.StatusLabel.TextAlign = [System.Drawing.ContentAlignment]::MiddleRight
     $controls.StatusStrip.Items.Add($controls.StatusLabel)
-    
-    # Add ProgressBar for background loading BEFORE StatusLabel (after StatusLabel)
-    $controls.ProgressBar = New-Object Windows.Forms.ToolStripProgressBar
+
+    # Add full-width ProgressBar that will overlay StatusStrip during background loading
+    $controls.ProgressBar = New-Object Windows.Forms.ProgressBar
     $controls.ProgressBar.Visible = $false
-    $controls.ProgressBar.Width = 200
-    $controls.StatusStrip.Items.Add($controls.ProgressBar)
+    $controls.ProgressBar.Style = [System.Windows.Forms.ProgressBarStyle]::Continuous
+    $controls.ProgressBar.Step = 1
+    $controls.ProgressBar.Maximum = 100
+    $controls.ProgressBar.Height = 22
+    $form.Controls.Add($controls.ProgressBar)
 
     $form.Controls.Add($controls.StatusStrip)
     
@@ -701,7 +704,22 @@ function Start-BackgroundCommentLoading {
     
     $global:backgroundCurrentIndex = 0
     
-    # Show progress bar with normal progression (not multiplied)
+    # Calculate StatusStrip position and size
+    $statusStripTop = $form.ClientSize.Height - $controls.StatusStrip.Height
+    $statusStripLeft = 0
+    $statusStripWidth = $form.ClientSize.Width
+
+    # Calculate statistics text width (approximate)
+    $statsWidth = $controls.AboutLink.Width + 20  # Add some padding
+
+    # Position full-width ProgressBar to cover only the right part of StatusStrip
+    $controls.ProgressBar.Left = $statsWidth
+    $controls.ProgressBar.Top = $statusStripTop
+    $controls.ProgressBar.Width = $statusStripWidth - $statsWidth
+    $controls.ProgressBar.Height = $controls.StatusStrip.Height
+    $controls.ProgressBar.BringToFront()
+
+    # Show ProgressBar
     $controls.ProgressBar.Minimum = 0
     $controls.ProgressBar.Maximum = $global:backgroundFileIndexes.Count
     $controls.ProgressBar.Value = 0
@@ -759,7 +777,7 @@ function Start-BackgroundCommentLoading {
                 
                 $file.CommentsLoaded = $true
                 
-                # Update progress bar with normal progression
+                # Update progress bar
                 $controls.ProgressBar.Value = $global:backgroundCurrentIndex + 1
 
                 # Force UI update
@@ -1003,6 +1021,40 @@ function Read-FileMetadata($filePath) {
         Comments = ""
         Duration = 0
     }
+}
+
+function Write-FileMetadata($filePath, $comments) {
+    try {
+        $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
+        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
+
+        if (Test-Path $dllPath) {
+            Add-Type -Path $dllPath
+
+            $tagFile = [TagLib.File]::Create($filePath)
+
+            if ($tagFile) {
+                $tags = $tagFile.Tag
+                if ($null -eq $tags) {
+                    $tagFile.Tag = $tagFile.GetTag([TagLib.TagTypes]::Id3v2, $true)
+                    $tags = $tagFile.Tag
+                }
+
+                if ($tags) {
+                    $tags.Comment = $comments
+                    $tagFile.Save()
+                    $tagFile.Dispose()
+                    return $true
+                }
+
+                $tagFile.Dispose()
+            }
+        }
+    } catch {
+        Write-Host "Error writing metadata: $($_.Exception.Message)" -ForegroundColor Red
+    }
+
+    return $false
 }
 
 function Update-CommentsDisplay {
@@ -1389,7 +1441,7 @@ function BindHandlers {
                     $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
                     
                     Write-Host "=== Saving Comments Started ===" -ForegroundColor Cyan
-                    $success = Write-FileComments $global:currentSelectedFile.Path $newComments
+                    $success = Write-FileMetadata $global:currentSelectedFile.Path $newComments
                     Write-Host "=== Saving Comments Completed ===" -ForegroundColor Cyan
                     
                      $controls.SaveCommentsBtn.Text = $originalText
@@ -1500,6 +1552,7 @@ $form.Add_Resize({
             
             # Update Year Filter ListView height to fill remaining space
             # Calculate the exact position where YearFilterListView should start
+            # Use the same calculation as in Add_Resize for consistency
             $gap = [int]($global:fontSize * 0.8)
             $btnH = [int]($global:fontSize * 2.2)
             $btnW = 160 + $global:fontSize*2
