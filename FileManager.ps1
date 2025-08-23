@@ -1481,7 +1481,7 @@ function BindHandlers {
     }
     
              $controls.AboutLink.Add_Click({
-             Start-Process "https://github.com/SVDotsenko/cleaner/blob/main/readme.md"
+             Start-Process "https://github.com/SVDotsenko/cleaner/blob/after-youtube/readme.md"
          })
          
          # Add year filter change handlers
