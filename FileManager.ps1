@@ -19,44 +19,59 @@ $global:backgroundFileIndexes = @()
 $global:backgroundCurrentIndex = 0
 $global:commentsEnabled = $true
 
-function Show-TrayNotification
-{
+function Show-TrayNotification {
     param(
         [string]$Title,
         [string]$Message,
+        [int]$Duration = 3000,
         [string]$Type = "Info"
     )
 
-    try
-    {
-        $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
-        $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
-        $notifyIcon.Visible = $true
+    Write-Host "[$Type] $Title`: $Message"
 
-        switch ($Type)
-        {
-            "Error" { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error }
-            "Warning" { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Warning }
-            default { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information }
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
+
+        switch ($Type) {
+            "Error" {
+                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error
+                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Error
+            }
+            default {
+                $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
+                $toolTipIcon = [System.Windows.Forms.ToolTipIcon]::Info
+            }
         }
 
-        $notifyIcon.ShowBalloonTip(3000, $Title, $Message, [System.Windows.Forms.ToolTipIcon]::Info)
+        $notifyIcon.Visible = $true
+        $notifyIcon.ShowBalloonTip($Duration, $Title, $Message, $toolTipIcon)
 
         $timer = New-Object System.Windows.Forms.Timer
-        $timer.Interval = 4000
+        $timer.Interval = $Duration
+
+        $localNotifyIcon = $notifyIcon
+        $localTimer = $timer
+
         $timer.Add_Tick({
-            if ($notifyIcon) {
-                $notifyIcon.Dispose()
+            try {
+                if ($null -ne $localNotifyIcon -and -not $localNotifyIcon.IsDisposed) {
+                    $localNotifyIcon.Dispose()
+                }
+            } catch {
             }
-            if ($timer) {
-                $timer.Dispose()
+            try {
+                if ($null -ne $localTimer -and -not $localTimer.IsDisposed) {
+                    $localTimer.Dispose()
+                }
+            } catch {
             }
         })
         $timer.Start()
-    }
-    catch
-    {
-        Write-Host "${Title}: ${Message}" -ForegroundColor Yellow
+
+    } catch {
+        $messageBoxIcon = if ($Type -eq "Error") { 'Error' } else { 'Information' }
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', $messageBoxIcon) | Out-Null
     }
 }
 
