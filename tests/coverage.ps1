@@ -11,12 +11,9 @@ if (-not (Get-Module -Name Pester -ListAvailable)) {
 }
 
 Import-Module Pester -Force
-
-# Устанавливаем переменную для тестового режима
 $env:FILEMANAGER_TEST_MODE = "true"
 
 try {
-    # Определяем корневую папку проекта
     $rootPath = Split-Path $PSScriptRoot -Parent
     $testsPath = $PSScriptRoot
     $sourceFile = Join-Path $rootPath "FileManager.ps1"
