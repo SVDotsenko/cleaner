@@ -20,7 +20,7 @@ try {
     $rootPath = Split-Path $PSScriptRoot -Parent
     $testsPath = $PSScriptRoot
     $sourceFile = Join-Path $rootPath "FileManager.ps1"
-    $outputFile = Join-Path $testsPath "output.txt"
+    $logFile = Join-Path $testsPath "log.txt"
 
     # Функция для записи в файл с временной меткой
     function Write-ToFile {
@@ -29,14 +29,14 @@ try {
             [string]$Color = "White"
         )
         $timestamp = Get-Date -Format "HH:mm:ss.fff"
-        "[$timestamp] $Message" | Add-Content -Path $outputFile -Encoding UTF8
+        "[$timestamp] $Message" | Add-Content -Path $logFile -Encoding UTF8
     }
 
-    # Очищаем файл output.txt и добавляем заголовок
-    "=" * 80 | Set-Content -Path $outputFile -Encoding UTF8
+    # Очищаем файл log.txt и добавляем заголовок
+    "=" * 80 | Set-Content -Path $logFile -Encoding UTF8
     Write-ToFile "🔍 PESTER COVERAGE DIAGNOSTIC OUTPUT"
     Write-ToFile "Started at: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
-    "=" * 80 | Add-Content -Path $outputFile -Encoding UTF8
+    "=" * 80 | Add-Content -Path $logFile -Encoding UTF8
 
     # Настраиваем конфигурацию Pester 5
     $configuration = New-PesterConfiguration
@@ -118,7 +118,7 @@ try {
         Write-ToFile "  No analyzed files found!"
     }
 
-    # ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА КОМАНД - В ФАЙЛ
+    # ДОПОЛНИТЕЛЬНАЯ ДИАГНОСТИКА КО��АНД - В ФАЙЛ
     Write-ToFile ""
     Write-ToFile "🔍 DETAILED COMMANDS ANALYSIS:"
     Write-ToFile "All CommandsExecuted with file info:"
@@ -199,7 +199,7 @@ try {
         [math]::Round(($coveredLines / $totalLines) * 100, 2)
     } else { 0 }
 
-    # Показываем результаты в консоли
+    # Показываем резу��ьтаты в консоли
     Write-Host "`n$("=" * 50)" -ForegroundColor Cyan
     Write-Host "📊 TEST RESULTS" -ForegroundColor Cyan
     Write-Host $("=" * 50) -ForegroundColor Cyan
@@ -317,10 +317,11 @@ try {
         .bg-green { background-color: #28a745; } .bg-orange { background-color: #fd7e14; } .bg-red { background-color: #dc3545; }
         .functions { margin-top: 30px; }
         .functions h2 { color: #333; border-bottom: 2px solid #007acc; padding-bottom: 10px; }
-        .function-item { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; margin: 10px 0; }
-        .function-name { color: #495057; font-weight: bold; font-size: 16px; margin-bottom: 8px; }
-        .function-lines { color: #6c757d; font-size: 14px; margin-bottom: 5px; }
-        .function-coverage { font-family: monospace; font-size: 12px; }
+        .functions-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
+        .function-item { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; }
+        .function-name { color: #495057; font-weight: bold; font-size: 14px; margin-bottom: 8px; line-height: 1.2; overflow-wrap: break-word; }
+        .function-lines { color: #6c757d; font-size: 12px; margin-bottom: 8px; }
+        .function-coverage { font-family: monospace; font-size: 11px; margin-top: auto; }
         .timestamp { color: #6c757d; font-size: 12px; text-align: right; margin-top: 20px; border-top: 1px solid #dee2e6; padding-top: 10px; }
     </style>
 </head>
@@ -353,9 +354,10 @@ try {
 
         <div class="functions">
             <h2>🔍 Functions Coverage</h2>
+            <div class="functions-grid">
 "@
 
-    # Добавляем информацию о функциях
+    # Добавляем информацию о функциях в сетке
     $sortedFunctions = $functions | Sort-Object {
         if ($_.TotalLines -eq 0) { 100 }
         else { ($_.CoveredLines / $_.TotalLines) * 100 }
@@ -371,18 +373,19 @@ try {
                             else { "red" }
 
         $htmlReport += @"
-            <div class="function-item">
-                <div class="function-name">function $($func.Name)()</div>
-                <div class="function-lines">Lines: $($func.StartLine) - $($func.EndLine)</div>
-                <div class="function-coverage">
-                    <span class="$funcCoverageClass">Coverage: $funcCoveragePercent%</span>
-                    ($($func.CoveredLines)/$($func.TotalLines) commands covered)
+                <div class="function-item">
+                    <div class="function-name">function $($func.Name)()</div>
+                    <div class="function-lines">Lines: $($func.StartLine) - $($func.EndLine)</div>
+                    <div class="function-coverage">
+                        <span class="$funcCoverageClass">Coverage: $funcCoveragePercent%</span>
+                        ($($func.CoveredLines)/$($func.TotalLines) commands covered)
+                    </div>
                 </div>
-            </div>
 "@
     }
 
     $htmlReport += @"
+            </div>
         </div>
 
         <div class="timestamp">
@@ -399,7 +402,7 @@ try {
 
     Write-Host "📄 HTML report saved to: tests\coverage-report.html" -ForegroundColor Cyan
     Write-Host "📄 XML coverage saved to: tests\coverage.xml" -ForegroundColor Cyan
-    Write-Host "📄 Diagnostic output saved to: tests\output.txt" -ForegroundColor Yellow
+    Write-Host "📄 Diagnostic output saved to: tests\log.txt" -ForegroundColor Yellow
     Write-Host $("=" * 50) -ForegroundColor Cyan
 
     # Открываем отчёт в браузере
@@ -411,7 +414,7 @@ try {
 } catch {
     Write-Host "❌ Error: $($_.Exception.Message)" -ForegroundColor Red
     # Записываем ошибку в файл
-    if ($outputFile) {
+    if ($logFile) {
         Write-ToFile "❌ ERROR: $($_.Exception.Message)"
         Write-ToFile "Stack trace: $($_.Exception.StackTrace)"
     }
