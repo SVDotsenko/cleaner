@@ -1552,4 +1552,6 @@ $form.Add_FormClosing({
     Stop-BackgroundCommentLoading
 })
 
-[void]$form.ShowDialog()
+if ($env:FILEMANAGER_TEST_MODE -ne "true") {
+    [void]$form.ShowDialog()
+}

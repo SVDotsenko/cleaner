@@ -1,36 +1,12 @@
-# FileManager.Tests.ps1
-# Юнит-тесты для функций FileManager.ps1 (Pester 5.x)
-
 Describe "FileManager Functions" {
     BeforeAll {
-        # Определяем функции для тестирования локально, чтобы избежать запуска GUI
-        function Format-ExtractedDate($date, $showTime = $false) {
-            if ($null -eq $date) {
-                return "N/A"
-            }
-            if ($showTime) {
-                return $date.ToString("dd.MM.yy HH:mm:ss")
-            } else {
-                return $date.ToString("dd.MM.yy")
-            }
-        }
+        $env:FILEMANAGER_TEST_MODE = "true"
+        $scriptPath = Join-Path (Split-Path $PSScriptRoot -Parent) "FileManager.ps1"
+        . $scriptPath
+    }
 
-        function Get-DisplayNameFromFileName($fileName) {
-            $nameWithoutExt = [System.IO.Path]::GetFileNameWithoutExtension($fileName)
-            if ($nameWithoutExt.Length -gt 0 -and [char]::IsLetter($nameWithoutExt[0])) {
-                $result = ""
-                foreach ($c in $nameWithoutExt.ToCharArray()) {
-                    if ([char]::IsLetter($c)) {
-                        $result += $c
-                    } else {
-                        break
-                    }
-                }
-                return $result
-            } else {
-                return $fileName
-            }
-        }
+    AfterAll {
+        Remove-Item env:FILEMANAGER_TEST_MODE -ErrorAction SilentlyContinue
     }
 
     Describe "Format-ExtractedDate" {
@@ -100,4 +76,43 @@ Describe "FileManager Functions" {
             $result | Should -Be "123456.mp3"
         }
     }
-} 
+
+    Describe "Get-DateFromFileName" {
+        It "Should extract date from .m4a file" {
+            $result = Get-DateFromFileName "test_240115_143025.m4a" ".m4a"
+            $result | Should -Be ([DateTime]::Parse("2024-01-15 14:30:25"))
+        }
+
+        It "Should return null for invalid .m4a format" {
+            $result = Get-DateFromFileName "invalid.m4a" ".m4a"
+            $result | Should -Be $null
+        }
+
+        It "Should extract date from .ogg file" {
+            $result = Get-DateFromFileName "test_2024_01_15_14_30_25.ogg" ".ogg"
+            $result | Should -Be ([DateTime]::Parse("2024-01-15 14:30:25"))
+        }
+    }
+
+    Describe "Format-Duration" {
+        It "Should format zero duration" {
+            $result = Format-Duration 0
+            $result | Should -Be "00:00:00"
+        }
+
+        It "Should format seconds only" {
+            $result = Format-Duration 45
+            $result | Should -Be "00:00:45"
+        }
+
+        It "Should format minutes and seconds" {
+            $result = Format-Duration 125
+            $result | Should -Be "00:02:05"
+        }
+
+        It "Should format hours, minutes and seconds" {
+            $result = Format-Duration 3665
+            $result | Should -Be "01:01:05"
+        }
+    }
+}
