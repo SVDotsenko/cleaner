@@ -4,7 +4,6 @@ param(
 
 Write-Host "🧪 Starting tests with coverage analysis..." -ForegroundColor Cyan
 
-# Проверяем и устанавливаем Pester
 if (-not (Get-Module -Name Pester -ListAvailable)) {
     Write-Host "Installing Pester module..." -ForegroundColor Yellow
     Install-Module -Name Pester -Force -SkipPublisherCheck -Scope CurrentUser
