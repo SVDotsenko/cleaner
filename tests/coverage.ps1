@@ -18,7 +18,6 @@ try {
     $sourceFile = Join-Path $rootPath "FileManager.ps1"
     $logFile = Join-Path $testsPath "log.txt"
 
-    # Функция для записи в файл с временной меткой
     function Write-ToFile {
         param(
             [string]$Message,
