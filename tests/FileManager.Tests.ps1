@@ -1,11 +1,31 @@
+# Конфигурация Pester с анализом покрытия
+$PesterConfig = New-PesterConfiguration
+$PesterConfig.Run.Path = $PSScriptRoot
+$PesterConfig.TestResult.Enabled = $true
+$PesterConfig.TestResult.OutputFormat = 'NUnitXml'
+$PesterConfig.TestResult.OutputPath = Join-Path $PSScriptRoot 'TestResults.xml'
+
+# Настройка Code Coverage
+$PesterConfig.CodeCoverage.Enabled = $true
+$PesterConfig.CodeCoverage.Path = Join-Path (Split-Path $PSScriptRoot -Parent) "FileManager.ps1"
+$PesterConfig.CodeCoverage.OutputFormat = 'JaCoCo'
+$PesterConfig.CodeCoverage.OutputPath = Join-Path $PSScriptRoot 'coverage.xml'
+
+# Включаем детальный вывод
+$PesterConfig.Output.Verbosity = 'Detailed'
+
 Describe "FileManager Functions" {
     BeforeAll {
+        # Устанавливаем переменную окружения для режима тестирования
         $env:FILEMANAGER_TEST_MODE = "true"
+
+        # Импортируем основной файл
         $scriptPath = Join-Path (Split-Path $PSScriptRoot -Parent) "FileManager.ps1"
         . $scriptPath
     }
 
     AfterAll {
+        # Очищаем переменную окружения
         Remove-Item env:FILEMANAGER_TEST_MODE -ErrorAction SilentlyContinue
     }
 
@@ -115,4 +135,9 @@ Describe "FileManager Functions" {
             $result | Should -Be "01:01:05"
         }
     }
+}
+
+# Запуск тестов с покрытием (если скрипт запускается напрямую)
+if ($MyInvocation.InvocationName -ne '.') {
+    Invoke-Pester -Configuration $PesterConfig
 }
