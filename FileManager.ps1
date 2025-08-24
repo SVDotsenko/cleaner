@@ -19,6 +19,47 @@ $global:backgroundFileIndexes = @()
 $global:backgroundCurrentIndex = 0
 $global:commentsEnabled = $true
 
+function Show-TrayNotification
+{
+    param(
+        [string]$Title,
+        [string]$Message,
+        [string]$Type = "Info"
+    )
+
+    try
+    {
+        $notifyIcon = New-Object System.Windows.Forms.NotifyIcon
+        $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information
+        $notifyIcon.Visible = $true
+
+        switch ($Type)
+        {
+            "Error" { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Error }
+            "Warning" { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Warning }
+            default { $notifyIcon.Icon = [System.Drawing.SystemIcons]::Information }
+        }
+
+        $notifyIcon.ShowBalloonTip(3000, $Title, $Message, [System.Windows.Forms.ToolTipIcon]::Info)
+
+        $timer = New-Object System.Windows.Forms.Timer
+        $timer.Interval = 4000
+        $timer.Add_Tick({
+            if ($notifyIcon) {
+                $notifyIcon.Dispose()
+            }
+            if ($timer) {
+                $timer.Dispose()
+            }
+        })
+        $timer.Start()
+    }
+    catch
+    {
+        Write-Host "${Title}: ${Message}" -ForegroundColor Yellow
+    }
+}
+
 function Test-Requirements
 {
     $tagLibModule = Get-Module -Name TagLibCli -ListAvailable
