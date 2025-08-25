@@ -194,7 +194,57 @@ try {
         [math]::Round(($coveredLines / $totalLines) * 100, 2)
     } else { 0 }
 
-    # Показываем резу��ьтаты в консоли
+    # Генерируем LCOV файл для Coverage Gutters
+    $lcovPath = Join-Path $testsPath "lcov.info"
+    $lcovContent = @()
+
+    # Получаем относительный путь к источнику
+    $relativeSourcePath = [System.IO.Path]::GetRelativePath($rootPath, $sourceFile)
+    $relativeSourcePath = $relativeSourcePath.Replace('\', '/')
+
+    Write-ToFile "Generating LCOV format for Coverage Gutters..."
+    Write-ToFile "Source file: $sourceFile"
+    Write-ToFile "Relative path: $relativeSourcePath"
+
+    # Заголовок LCOV
+    $lcovContent += "TN:"  # Test name
+    $lcovContent += "SF:$relativeSourcePath"  # Source file
+
+    # Собираем все строки с покрытием
+    $allLines = @{}
+    
+    # Добавляем покрытые строки
+    if ($coverage.CommandsExecuted) {
+        foreach ($command in $coverage.CommandsExecuted) {
+            $allLines[$command.Line] = 1
+        }
+    }
+
+    # Добавляем непокрытые строки
+    if ($coverage.CommandsMissed) {
+        foreach ($command in $coverage.CommandsMissed) {
+            if (-not $allLines.ContainsKey($command.Line)) {
+                $allLines[$command.Line] = 0
+            }
+        }
+    }
+
+    # Сортируем строки по номерам и добавляем в LCOV
+    $sortedLines = $allLines.GetEnumerator() | Sort-Object Name
+    foreach ($line in $sortedLines) {
+        $lcovContent += "DA:$($line.Name),$($line.Value)"  # DA:line_number,execution_count
+    }
+
+    # Добавляем статистику
+    $lcovContent += "LH:$coveredLines"  # Lines hit
+    $lcovContent += "LF:$totalLines"    # Lines found
+    $lcovContent += "end_of_record"
+
+    # Сохраняем LCOV файл
+    $lcovContent | Out-File -FilePath $lcovPath -Encoding UTF8
+    Write-ToFile "LCOV file generated: $lcovPath"
+
+    # Показываем результаты в консоли
     Write-Host "`n$("=" * 50)" -ForegroundColor Cyan
     Write-Host "📊 TEST RESULTS" -ForegroundColor Cyan
     Write-Host $("=" * 50) -ForegroundColor Cyan
@@ -395,15 +445,24 @@ try {
     $htmlPath = Join-Path $PSScriptRoot 'coverage-report.html'
     $htmlReport | Out-File -FilePath $htmlPath -Encoding UTF8
 
-    Write-Host "📄 HTML report saved to: tests\coverage-report.html" -ForegroundColor Cyan
-    Write-Host "📄 XML coverage saved to: tests\coverage.xml" -ForegroundColor Cyan
-    Write-Host "📄 Diagnostic output saved to: tests\log.txt" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "📄 Coverage files generated:" -ForegroundColor Cyan
+    Write-Host "  • HTML report: tests\coverage-report.html" -ForegroundColor White
+    Write-Host "  • XML coverage: tests\coverage.xml" -ForegroundColor White
+    Write-Host "  • LCOV format: tests\lcov.info (for VS Code Coverage Gutters)" -ForegroundColor Green
+    Write-Host "  • Diagnostic log: tests\log.txt" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "🎯 VS Code Coverage Gutters setup:" -ForegroundColor Cyan
+    Write-Host "  1. Install 'Coverage Gutters' extension" -ForegroundColor White
+    Write-Host "  2. Open Command Palette (Ctrl+Shift+P)" -ForegroundColor White
+    Write-Host "  3. Run: 'Coverage Gutters: Display Coverage'" -ForegroundColor White
+    Write-Host "  4. Or press Ctrl+Shift+7" -ForegroundColor White
     Write-Host $("=" * 50) -ForegroundColor Cyan
 
     # Открываем отчёт в браузере
     if ($OpenReport) {
         Start-Process $htmlPath
-        Write-Host "🌐 Opening report in browser..." -ForegroundColor Green
+        Write-Host "🌐 Opening HTML report in browser..." -ForegroundColor Green
     }
 
 } catch {
