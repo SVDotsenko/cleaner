@@ -18,6 +18,7 @@ $global:isBackgroundLoading = $false
 $global:backgroundFileIndexes = @()
 $global:backgroundCurrentIndex = 0
 $global:commentsEnabled = $true
+$global:allTags = @()
 
 function Show-TrayNotification {
     param(
@@ -115,6 +116,30 @@ if (-not (Test-Requirements))
 {
     exit
 }
+
+function Read-WindowsTags($filePath)
+{
+    try {
+        $shell = New-Object -ComObject Shell.Application
+        $folder = $shell.Namespace((Get-Item $filePath).DirectoryName)
+        $file = $folder.ParseName((Get-Item $filePath).Name)
+
+        # Индекс 18 - это поле "Tags" в Windows Shell API
+        $tagsValue = $folder.GetDetailsOf($file, 18)
+
+        if ($tagsValue -and $tagsValue.Trim() -ne "") {
+            # Разделяем теги по точке с запятой и очищаем от пробелов
+            $tags = $tagsValue.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+            return @($tags)
+        }
+
+        return @()
+    } catch {
+        Write-Host "Error reading Windows tags from $filePath`: $($_.Exception.Message)" -ForegroundColor Red
+        return @()
+    }
+}
+
 
 $form = New-Object Windows.Forms.Form
 $form.Text = "File Manager"
@@ -220,6 +245,20 @@ function CreateControls
     $controls.AllYearsRadio.SetBounds(10, $filterRadioY, $btnW - 20, $btnH)
 
     $y += $filterGroupHeight + $gap
+
+    # Tags CheckedListBox
+    $tagsGroupHeight = 120
+    $controls.TagsGroupBox = New-Object Windows.Forms.GroupBox
+    $controls.TagsGroupBox.Text = "Tags"
+    $controls.TagsGroupBox.SetBounds($x, $y, $btnW, $tagsGroupHeight)
+    $form.Controls.Add($controls.TagsGroupBox)
+
+    $controls.TagsCheckedListBox = New-Object Windows.Forms.CheckedListBox
+    $controls.TagsCheckedListBox.CheckOnClick = $true
+    $controls.TagsCheckedListBox.SetBounds(10, 20, $btnW - 20, $tagsGroupHeight - 30)
+    $controls.TagsGroupBox.Controls.Add($controls.TagsCheckedListBox)
+
+    $y += $tagsGroupHeight + $gap
 
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
 
@@ -328,6 +367,13 @@ function LayoutOnlyFonts
 
     $y += $filterGroupHeight + $gap
 
+    # Tags GroupBox
+    $tagsGroupHeight = 120
+    $controls.TagsGroupBox.SetBounds($x, $y, $btnW, $tagsGroupHeight)
+    $controls.TagsCheckedListBox.SetBounds(10, 20, $btnW - 20, $tagsGroupHeight - 30)
+
+    $y += $tagsGroupHeight + $gap
+
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
     $controls.ListView.Width = $form.ClientSize.Width - $leftPanelWidth
@@ -344,6 +390,8 @@ function LayoutOnlyFonts
     $controls.FilterGroupBox.Font = $font
     $controls.ThisYearRadio.Font = $font
     $controls.AllYearsRadio.Font = $font
+    $controls.TagsGroupBox.Font = $font
+    $controls.TagsCheckedListBox.Font = $font
     $controls.StatusLabel.Font = $font
 }
 
@@ -527,6 +575,52 @@ function Update-ListViewPreserveScroll
     Update-ListViewTextColors
 }
 
+function Update-TagsList
+{
+    $newTags = @()
+
+    # Собираем все уникальные теги из загруженных файлов
+    foreach ($file in $global:fileTable)
+    {
+        if ($file.CommentsLoaded -and $file.Tags -and $file.Tags.Count -gt 0)
+        {
+            foreach ($tag in $file.Tags)
+            {
+                if ($tag -and $tag.Trim() -ne "" -and $newTags -notcontains $tag.Trim())
+                {
+                    $newTags += $tag.Trim()
+                }
+            }
+        }
+    }
+
+    # Сортируем теги по алфавиту
+    $newTags = $newTags | Sort-Object
+    $global:allTags = $newTags
+
+    # Сохраняем текущие выбранные теги
+    $selectedTags = @()
+    for ($i = 0; $i -lt $controls.TagsCheckedListBox.Items.Count; $i++)
+    {
+        if ($controls.TagsCheckedListBox.GetItemChecked($i))
+        {
+            $selectedTags += $controls.TagsCheckedListBox.Items[$i]
+        }
+    }
+
+    # Обновляем список
+    $controls.TagsCheckedListBox.Items.Clear()
+    foreach ($tag in $global:allTags)
+    {
+        $index = $controls.TagsCheckedListBox.Items.Add($tag)
+        # Восстанавливаем выбор, если тег был выбран ранее
+        if ($selectedTags -contains $tag)
+        {
+            $controls.TagsCheckedListBox.SetItemChecked($index, $true)
+        }
+    }
+}
+
 function Apply-YearFilter
 {
     if ($controls.ThisYearRadio.Checked)
@@ -678,6 +772,7 @@ function Load-CommentsForVisibleItems
                 $metadata = Read-FileMetadata $file.Path
                 $file.Comments = $metadata.Comments
                 $file.Duration = $metadata.Duration
+                $file.Tags = $metadata.Tags
                 $file.CommentsLoaded = $true
                 $loadedCount++
 
@@ -716,6 +811,7 @@ function Load-CommentsForVisibleItems
     if ($loadedCount -gt 0)
     {
         Update-ListViewTextColors
+        Update-TagsList
     }
 
     Start-BackgroundCommentLoading
@@ -791,10 +887,21 @@ function Start-BackgroundCommentLoading
                             if ($tags)
                             {
                                 $file.Comments = $tags.Comment
+                                # Читаем теги из Windows Shell API
+                                $windowsTags = Read-WindowsTags $file.Path
+                                if ($windowsTags.Count -gt 0)
+                                {
+                                    $file.Tags = $windowsTags
+                                }
+                                else
+                                {
+                                    $file.Tags = @()
+                                }
                             }
                             else
                             {
                                 $file.Comments = ""
+                                $file.Tags = @()
                             }
 
                             $properties = $tagFile.Properties
@@ -813,18 +920,21 @@ function Start-BackgroundCommentLoading
                         {
                             $file.Comments = ""
                             $file.Duration = 0
+                            $file.Tags = @()
                         }
                     }
                     else
                     {
                         $file.Comments = ""
                         $file.Duration = 0
+                        $file.Tags = @()
                     }
                 }
                 catch
                 {
                     $file.Comments = ""
                     $file.Duration = 0
+                    $file.Tags = @()
                 }
 
                 $file.CommentsLoaded = $true
@@ -847,6 +957,7 @@ function Start-BackgroundCommentLoading
             $global:backgroundFileIndexes = @()
             $global:backgroundCurrentIndex = 0
             Update-InfoLabels
+            Update-TagsList
         }
     })
 
@@ -1048,6 +1159,7 @@ function Read-FileMetadata($filePath)
                 $result = @{
                     Comments = ""
                     Duration = 0
+                    Tags = @()
                 }
 
                 if ($tags)
@@ -1056,6 +1168,17 @@ function Read-FileMetadata($filePath)
                     if ($null -eq $result.Comments)
                     {
                         $result.Comments = ""
+                    }
+
+                    # Читаем теги из Windows Shell API (поле Tags в Properties)
+                    $windowsTags = Read-WindowsTags $filePath
+                    if ($windowsTags.Count -gt 0)
+                    {
+                        $result.Tags = $windowsTags
+                    }
+                    else
+                    {
+                        $result.Tags = @()
                     }
                 }
 
@@ -1077,6 +1200,7 @@ function Read-FileMetadata($filePath)
     return @{
         Comments = ""
         Duration = 0
+        Tags = @()
     }
 }
 
@@ -1147,9 +1271,11 @@ function Update-CommentsDisplay
                         $metadata = Read-FileMetadata $file.Path
                         $file.Comments = $metadata.Comments
                         $file.Duration = $metadata.Duration
+                        $file.Tags = $metadata.Tags
                         $file.CommentsLoaded = $true
 
                         Update-ListViewTextColors
+                        Update-TagsList
                     }
 
                     $comments = $file.Comments
@@ -1258,6 +1384,7 @@ function Get-FilesFromFolder
                 DisplayDate = $displayDate
                 OrigName = $file.Name
                 Comments = $null
+                Tags = @()
                 CommentsLoaded = $false
             }
 
@@ -1268,6 +1395,7 @@ function Get-FilesFromFolder
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Apply-YearFilter
         Update-ListView
+        Update-TagsList
     }
     else
     {
