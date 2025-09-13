@@ -139,19 +139,11 @@ function CreateControls
     $y = $gap
     $x = $gap
 
-    $btnDeleteW = [int](($btnW - $gap) / 2)
-
     $controls.DeleteBtn = New-Object Windows.Forms.Button
     $controls.DeleteBtn.Text = "Delete"
     $controls.DeleteBtn.Enabled = $false
     $form.Controls.Add($controls.DeleteBtn)
-    $controls.DeleteBtn.SetBounds($x, $y, $btnDeleteW, $btnH)
-
-    $controls.BinBtn = New-Object Windows.Forms.Button
-    $controls.BinBtn.Text = "Bin"
-    $controls.BinBtn.Enabled = $false
-    $form.Controls.Add($controls.BinBtn)
-    $controls.BinBtn.SetBounds($x + $btnDeleteW + $gap, $y, $btnDeleteW, $btnH)
+    $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
     $sortGroupHeight = $btnH * 3 + $gap * 2 + 30
@@ -278,9 +270,6 @@ Allows you to select another folder to display and work with its files.
     $deleteTooltip = @"
 Permanently deletes the selected files.
 "@
-    $binTooltip = @"
-Moves the selected files to the Recycle Bin.
-"@
     $sortNameTooltip = @"
 Sorts the file list by name (alphabetically, A to Z).
 "@
@@ -292,7 +281,6 @@ Sorts the file list by creation date (newest first).
 "@
     $toolTip.SetToolTip($controls.SelectFolder,$selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn,$deleteTooltip.Trim())
-    $toolTip.SetToolTip($controls.BinBtn,$binTooltip.Trim())
     $toolTip.SetToolTip($controls.SortNameRadio,$sortNameTooltip.Trim())
     $toolTip.SetToolTip($controls.SortSizeRadio,$sortSizeTooltip.Trim())
     $toolTip.SetToolTip($controls.SortCreatedRadio,$sortCreatedTooltip.Trim())
@@ -307,9 +295,7 @@ function LayoutOnlyFonts
     $y = $gap
     $x = $gap
 
-    $btnDeleteW = [int](($btnW - $gap) / 2)
-    $controls.DeleteBtn.SetBounds($x, $y, $btnDeleteW, $btnH)
-    $controls.BinBtn.SetBounds($x + $btnDeleteW + $gap, $y, $btnDeleteW, $btnH)
+    $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
     $sortGroupHeight = $btnH * 3 + $gap * 2 + 30
@@ -348,7 +334,6 @@ function LayoutOnlyFonts
     $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
 
     $controls.DeleteBtn.Font = $font
-    $controls.BinBtn.Font = $font
     $controls.SortGroupBox.Font = $font
     $controls.SortNameRadio.Font = $font
     $controls.SortSizeRadio.Font = $font
@@ -465,7 +450,6 @@ function Update-ListView
         $controls.ListView.Items.Add($item) | Out-Null
     }
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
-    $controls.BinBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
     Update-InfoLabels
     Update-ListViewTextColors
 }
@@ -539,7 +523,6 @@ function Update-ListViewPreserveScroll
     $controls.ListView.EndUpdate()
 
     $controls.DeleteBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
-    $controls.BinBtn.Enabled = $controls.ListView.Items.Count -gt 0 -and $controls.ListView.SelectedItems.Count -gt 0
     Update-InfoLabels
     Update-ListViewTextColors
 }
@@ -1295,20 +1278,7 @@ function Get-FilesFromFolder
     }
 }
 
-function Move-FileToRecycleBin($filePath)
-{
-    try
-    {
-        $shell = New-Object -ComObject Shell.Application
-        $item = $shell.Namespace(0).ParseName($filePath)
-        $item.InvokeVerb("delete")
-        return $true
-    }
-    catch
-    {
-        return $false
-    }
-}
+
 
 function BindHandlers
 {
@@ -1324,7 +1294,6 @@ function BindHandlers
     $controls.ListView.Add_SelectedIndexChanged({
         $hasSelection = $controls.ListView.SelectedItems.Count -gt 0
         $controls.DeleteBtn.Enabled = $hasSelection
-        $controls.BinBtn.Enabled = $hasSelection
         Update-InfoLabels
         Update-CommentsDisplay
     })
@@ -1381,34 +1350,7 @@ function BindHandlers
         Update-ListViewPreserveScroll
         Show-TrayNotification -Title "Done" -Message "$deleted file(s) permanently deleted."
     })
-    $controls.BinBtn.Add_Click({
-        $toDeleteIndexes = @()
-        foreach ($item in $controls.ListView.SelectedItems)
-        {
-            $toDeleteIndexes += $item.Index
-        }
-        $toDeleteIndexes = $toDeleteIndexes | Sort-Object -Descending
-        $deleted = 0
-        foreach ($i in $toDeleteIndexes)
-        {
-            $file = $global:filteredTable[$i]
-            try
-            {
-                $success = Move-FileToRecycleBin $file.Path
-                if ($success)
-                {
-                    $deleted++
-                    $global:fileTable = $global:fileTable | Where-Object { $_.Path -ne $file.Path }
-                    $global:filteredTable = $global:filteredTable | Where-Object { $_.Path -ne $file.Path }
-                }
-            }
-            catch
-            {
-            }
-        }
-        Update-ListViewPreserveScroll
-        Show-TrayNotification -Title "Done" -Message "$deleted file(s) moved to Recycle Bin."
-    })
+
     $controls.ListView.Add_DoubleClick({
         if ($controls.ListView.SelectedItems.Count -eq 1)
         {
