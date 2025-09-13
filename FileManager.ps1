@@ -117,26 +117,52 @@ if (-not (Test-Requirements))
     exit
 }
 
-function Read-WindowsTags($filePath)
+function Read-FileMetadataShellAPI($filePath)
 {
     try {
         $shell = New-Object -ComObject Shell.Application
         $folder = $shell.Namespace((Get-Item $filePath).DirectoryName)
         $file = $folder.ParseName((Get-Item $filePath).Name)
 
-        # Индекс 18 - это поле "Tags" в Windows Shell API
-        $tagsValue = $folder.GetDetailsOf($file, 18)
-
-        if ($tagsValue -and $tagsValue.Trim() -ne "") {
-            # Разделяем теги по точке с запятой и очищаем от пробелов
-            $tags = $tagsValue.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-            return @($tags)
+        $result = @{
+            Comments = ""
+            Duration = 0
+            Tags = @()
         }
 
-        return @()
+        # Индекс 18 - Tags
+        $tagsValue = $folder.GetDetailsOf($file, 18)
+        if ($tagsValue -and $tagsValue.Trim() -ne "") {
+            $tags = $tagsValue.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
+            $result.Tags = @($tags)
+        }
+
+        # Индекс 27 - Length/Duration
+        $durationValue = $folder.GetDetailsOf($file, 27)
+        if ($durationValue -and $durationValue.Trim() -ne "") {
+            # Парсим время в формате "00:12:40" в секунды
+            if ($durationValue -match "(\d+):(\d+):(\d+)") {
+                $hours = [int]$matches[1]
+                $minutes = [int]$matches[2]
+                $seconds = [int]$matches[3]
+                $result.Duration = $hours * 3600 + $minutes * 60 + $seconds
+            }
+        }
+
+        # Индекс 24 - Comments
+        $commentsValue = $folder.GetDetailsOf($file, 24)
+        if ($commentsValue -and $commentsValue.Trim() -ne "") {
+            $result.Comments = $commentsValue.Trim()
+        }
+
+        return $result
     } catch {
-        Write-Host "Error reading Windows tags from $filePath`: $($_.Exception.Message)" -ForegroundColor Red
-        return @()
+        Write-Host "Error reading Shell API metadata from $filePath`: $($_.Exception.Message)" -ForegroundColor Red
+        return @{
+            Comments = ""
+            Duration = 0
+            Tags = @()
+        }
     }
 }
 
@@ -769,7 +795,7 @@ function Load-CommentsForVisibleItems
                     }
                 }
 
-                $metadata = Read-FileMetadata $file.Path
+                $metadata = Read-FileMetadataShellAPI $file.Path
                 $file.Comments = $metadata.Comments
                 $file.Duration = $metadata.Duration
                 $file.Tags = $metadata.Tags
@@ -873,62 +899,10 @@ function Start-BackgroundCommentLoading
             {
                 try
                 {
-                    $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
-                    $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
-
-                    if (Test-Path $dllPath)
-                    {
-                        Add-Type -Path $dllPath
-                        $tagFile = [TagLib.File]::Create($file.Path)
-
-                        if ($tagFile)
-                        {
-                            $tags = $tagFile.Tag
-                            if ($tags)
-                            {
-                                $file.Comments = $tags.Comment
-                                # Читаем теги из Windows Shell API
-                                $windowsTags = Read-WindowsTags $file.Path
-                                if ($windowsTags.Count -gt 0)
-                                {
-                                    $file.Tags = $windowsTags
-                                }
-                                else
-                                {
-                                    $file.Tags = @()
-                                }
-                            }
-                            else
-                            {
-                                $file.Comments = ""
-                                $file.Tags = @()
-                            }
-
-                            $properties = $tagFile.Properties
-                            if ($properties)
-                            {
-                                $file.Duration = $properties.Duration.TotalSeconds
-                            }
-                            else
-                            {
-                                $file.Duration = 0
-                            }
-
-                            $tagFile.Dispose()
-                        }
-                        else
-                        {
-                            $file.Comments = ""
-                            $file.Duration = 0
-                            $file.Tags = @()
-                        }
-                    }
-                    else
-                    {
-                        $file.Comments = ""
-                        $file.Duration = 0
-                        $file.Tags = @()
-                    }
+                    $metadata = Read-FileMetadataShellAPI $file.Path
+                    $file.Comments = $metadata.Comments
+                    $file.Duration = $metadata.Duration
+                    $file.Tags = $metadata.Tags
                 }
                 catch
                 {
@@ -1138,71 +1112,7 @@ function Get-DisplayNameFromFileName($fileName)
     }
 }
 
-function Read-FileMetadata($filePath)
-{
-    try
-    {
-        $moduleDir = Split-Path (Get-Module -Name TagLibCli -ListAvailable).Path -Parent
-        $dllPath = Join-Path $moduleDir "TagLibSharp.dll"
-
-        if (Test-Path $dllPath)
-        {
-            Add-Type -Path $dllPath
-
-            $tagFile = [TagLib.File]::Create($filePath)
-
-            if ($tagFile)
-            {
-                $tags = $tagFile.Tag
-                $properties = $tagFile.Properties
-
-                $result = @{
-                    Comments = ""
-                    Duration = 0
-                    Tags = @()
-                }
-
-                if ($tags)
-                {
-                    $result.Comments = $tags.Comment
-                    if ($null -eq $result.Comments)
-                    {
-                        $result.Comments = ""
-                    }
-
-                    # Читаем теги из Windows Shell API (поле Tags в Properties)
-                    $windowsTags = Read-WindowsTags $filePath
-                    if ($windowsTags.Count -gt 0)
-                    {
-                        $result.Tags = $windowsTags
-                    }
-                    else
-                    {
-                        $result.Tags = @()
-                    }
-                }
-
-                if ($properties)
-                {
-                    $result.Duration = $properties.Duration.TotalSeconds
-                }
-
-                $tagFile.Dispose()
-                return $result
-            }
-        }
-    }
-    catch
-    {
-        Write-Host "Error reading metadata: $( $_.Exception.Message )" -ForegroundColor Red
-    }
-
-    return @{
-        Comments = ""
-        Duration = 0
-        Tags = @()
-    }
-}
+# Старая функция Read-FileMetadata заменена на Read-FileMetadataShellAPI выше
 
 function Write-FileMetadata($filePath, $comments)
 {
@@ -1268,7 +1178,7 @@ function Update-CommentsDisplay
 
                     if (-not $file.CommentsLoaded)
                     {
-                        $metadata = Read-FileMetadata $file.Path
+                        $metadata = Read-FileMetadataShellAPI $file.Path
                         $file.Comments = $metadata.Comments
                         $file.Duration = $metadata.Duration
                         $file.Tags = $metadata.Tags
