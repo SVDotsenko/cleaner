@@ -18,7 +18,6 @@ $global:isBackgroundLoading = $false
 $global:backgroundFileIndexes = @()
 $global:backgroundCurrentIndex = 0
 $global:commentsEnabled = $true
-$global:allTags = @()
 
 function Show-TrayNotification {
     param(
@@ -127,14 +126,6 @@ function Read-FileMetadataShellAPI($filePath)
         $result = @{
             Comments = ""
             Duration = 0
-            Tags = @()
-        }
-
-        # Индекс 18 - Tags
-        $tagsValue = $folder.GetDetailsOf($file, 18)
-        if ($tagsValue -and $tagsValue.Trim() -ne "") {
-            $tags = $tagsValue.Split(';') | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne "" }
-            $result.Tags = @($tags)
         }
 
         # Индекс 27 - Length/Duration
@@ -161,7 +152,6 @@ function Read-FileMetadataShellAPI($filePath)
         return @{
             Comments = ""
             Duration = 0
-            Tags = @()
         }
     }
 }
@@ -272,19 +262,6 @@ function CreateControls
 
     $y += $filterGroupHeight + $gap
 
-    # Tags CheckedListBox
-    $tagsGroupHeight = 120
-    $controls.TagsGroupBox = New-Object Windows.Forms.GroupBox
-    $controls.TagsGroupBox.Text = "Tags"
-    $controls.TagsGroupBox.SetBounds($x, $y, $btnW, $tagsGroupHeight)
-    $form.Controls.Add($controls.TagsGroupBox)
-
-    $controls.TagsCheckedListBox = New-Object Windows.Forms.CheckedListBox
-    $controls.TagsCheckedListBox.CheckOnClick = $true
-    $controls.TagsCheckedListBox.SetBounds(10, 20, $btnW - 20, $tagsGroupHeight - 30)
-    $controls.TagsGroupBox.Controls.Add($controls.TagsCheckedListBox)
-
-    $y += $tagsGroupHeight + $gap
 
     $controls.StatusStrip = New-Object Windows.Forms.StatusStrip
 
@@ -393,12 +370,6 @@ function LayoutOnlyFonts
 
     $y += $filterGroupHeight + $gap
 
-    # Tags GroupBox
-    $tagsGroupHeight = 120
-    $controls.TagsGroupBox.SetBounds($x, $y, $btnW, $tagsGroupHeight)
-    $controls.TagsCheckedListBox.SetBounds(10, 20, $btnW - 20, $tagsGroupHeight - 30)
-
-    $y += $tagsGroupHeight + $gap
 
     $controls.ListView.Left = $leftPanelWidth
     $controls.ListView.Top = 0
@@ -416,8 +387,6 @@ function LayoutOnlyFonts
     $controls.FilterGroupBox.Font = $font
     $controls.ThisYearRadio.Font = $font
     $controls.AllYearsRadio.Font = $font
-    $controls.TagsGroupBox.Font = $font
-    $controls.TagsCheckedListBox.Font = $font
     $controls.StatusLabel.Font = $font
 }
 
@@ -601,51 +570,6 @@ function Update-ListViewPreserveScroll
     Update-ListViewTextColors
 }
 
-function Update-TagsList
-{
-    $newTags = @()
-
-    # Собираем все уникальные теги из загруженных файлов
-    foreach ($file in $global:fileTable)
-    {
-        if ($file.CommentsLoaded -and $file.Tags -and $file.Tags.Count -gt 0)
-        {
-            foreach ($tag in $file.Tags)
-            {
-                if ($tag -and $tag.Trim() -ne "" -and $newTags -notcontains $tag.Trim())
-                {
-                    $newTags += $tag.Trim()
-                }
-            }
-        }
-    }
-
-    # Сортируем теги по алфавиту
-    $newTags = $newTags | Sort-Object
-    $global:allTags = $newTags
-
-    # Сохраняем текущие выбранные теги
-    $selectedTags = @()
-    for ($i = 0; $i -lt $controls.TagsCheckedListBox.Items.Count; $i++)
-    {
-        if ($controls.TagsCheckedListBox.GetItemChecked($i))
-        {
-            $selectedTags += $controls.TagsCheckedListBox.Items[$i]
-        }
-    }
-
-    # Обновляем список
-    $controls.TagsCheckedListBox.Items.Clear()
-    foreach ($tag in $global:allTags)
-    {
-        $index = $controls.TagsCheckedListBox.Items.Add($tag)
-        # Восстанавливаем выбор, если тег был выбран ранее
-        if ($selectedTags -contains $tag)
-        {
-            $controls.TagsCheckedListBox.SetItemChecked($index, $true)
-        }
-    }
-}
 
 function Apply-YearFilter
 {
@@ -763,8 +687,7 @@ function Load-CommentsForVisibleItems
         $visibleCount = 1
     }
     $startIndex = $topItemIndex
-    $endIndex = [math]::Min($totalCount - 1, $topItemIndex + $visibleCount - 1)
-    $endIndex = [math]::Min($totalCount - 1, $endIndex + 25)
+    $endIndex = [math]::Min($totalCount - 1, $topItemIndex + $visibleCount - 1 + 25)
 
     $loadedCount = 0
     $skippedCount = 0
@@ -798,7 +721,6 @@ function Load-CommentsForVisibleItems
                 $metadata = Read-FileMetadataShellAPI $file.Path
                 $file.Comments = $metadata.Comments
                 $file.Duration = $metadata.Duration
-                $file.Tags = $metadata.Tags
                 $file.CommentsLoaded = $true
                 $loadedCount++
 
@@ -837,7 +759,6 @@ function Load-CommentsForVisibleItems
     if ($loadedCount -gt 0)
     {
         Update-ListViewTextColors
-        Update-TagsList
     }
 
     Start-BackgroundCommentLoading
@@ -902,13 +823,11 @@ function Start-BackgroundCommentLoading
                     $metadata = Read-FileMetadataShellAPI $file.Path
                     $file.Comments = $metadata.Comments
                     $file.Duration = $metadata.Duration
-                    $file.Tags = $metadata.Tags
                 }
                 catch
                 {
                     $file.Comments = ""
                     $file.Duration = 0
-                    $file.Tags = @()
                 }
 
                 $file.CommentsLoaded = $true
@@ -931,7 +850,6 @@ function Start-BackgroundCommentLoading
             $global:backgroundFileIndexes = @()
             $global:backgroundCurrentIndex = 0
             Update-InfoLabels
-            Update-TagsList
         }
     })
 
@@ -1181,11 +1099,9 @@ function Update-CommentsDisplay
                         $metadata = Read-FileMetadataShellAPI $file.Path
                         $file.Comments = $metadata.Comments
                         $file.Duration = $metadata.Duration
-                        $file.Tags = $metadata.Tags
                         $file.CommentsLoaded = $true
 
                         Update-ListViewTextColors
-                        Update-TagsList
                     }
 
                     $comments = $file.Comments
@@ -1294,7 +1210,6 @@ function Get-FilesFromFolder
                 DisplayDate = $displayDate
                 OrigName = $file.Name
                 Comments = $null
-                Tags = @()
                 CommentsLoaded = $false
             }
 
@@ -1305,7 +1220,6 @@ function Get-FilesFromFolder
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Apply-YearFilter
         Update-ListView
-        Update-TagsList
     }
     else
     {
