@@ -187,36 +187,6 @@ function CreateControls
     $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-    $sortGroupHeight = $btnH * 3 + $gap * 2 + 30
-    $controls.SortGroupBox = New-Object Windows.Forms.GroupBox
-    $controls.SortGroupBox.Text = "Sort"
-    $controls.SortGroupBox.SetBounds($x, $y, $btnW, $sortGroupHeight)
-    $form.Controls.Add($controls.SortGroupBox)
-
-    $radioY = 25
-    $controls.SortNameRadio = New-Object Windows.Forms.RadioButton
-    $controls.SortNameRadio.Text = "Name"
-    $controls.SortNameRadio.AutoSize = $false
-    $controls.SortGroupBox.Controls.Add($controls.SortNameRadio)
-    $controls.SortNameRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-    $radioY += $btnH + $gap
-
-    $controls.SortSizeRadio = New-Object Windows.Forms.RadioButton
-    $controls.SortSizeRadio.Text = "Duration"
-    $controls.SortSizeRadio.AutoSize = $false
-    $controls.SortGroupBox.Controls.Add($controls.SortSizeRadio)
-    $controls.SortSizeRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-    $radioY += $btnH + $gap
-
-    $controls.SortCreatedRadio = New-Object Windows.Forms.RadioButton
-    $controls.SortCreatedRadio.Text = "Created"
-    $controls.SortCreatedRadio.AutoSize = $false
-    $controls.SortCreatedRadio.Checked = $true
-    $controls.SortGroupBox.Controls.Add($controls.SortCreatedRadio)
-    $controls.SortCreatedRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-
-    $y += $sortGroupHeight + $gap
-
     $controls.SelectFolder = New-Object Windows.Forms.Button
     $controls.SelectFolder.Text = "Folder"
     $form.Controls.Add($controls.SelectFolder)
@@ -312,20 +282,8 @@ Allows you to select another folder to display and work with its files.
     $deleteTooltip = @"
 Permanently deletes the selected files.
 "@
-    $sortNameTooltip = @"
-Sorts the file list by name (alphabetically, A to Z).
-"@
-    $sortSizeTooltip = @"
-Sorts the file list by duration (from longest to shortest).
-"@
-    $sortCreatedTooltip = @"
-Sorts the file list by creation date (newest first).
-"@
     $toolTip.SetToolTip($controls.SelectFolder,$selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn,$deleteTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortNameRadio,$sortNameTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortSizeRadio,$sortSizeTooltip.Trim())
-    $toolTip.SetToolTip($controls.SortCreatedRadio,$sortCreatedTooltip.Trim())
 }
 
 function LayoutOnlyFonts
@@ -339,18 +297,6 @@ function LayoutOnlyFonts
 
     $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
-
-    $sortGroupHeight = $btnH * 3 + $gap * 2 + 30
-    $controls.SortGroupBox.SetBounds($x, $y, $btnW, $sortGroupHeight)
-
-    $radioY = 25
-    $controls.SortNameRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-    $radioY += $btnH + $gap
-    $controls.SortSizeRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-    $radioY += $btnH + $gap
-    $controls.SortCreatedRadio.SetBounds(10, $radioY, $btnW - 20, $btnH)
-
-    $y += $sortGroupHeight + $gap
 
     $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
@@ -377,10 +323,6 @@ function LayoutOnlyFonts
     $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
 
     $controls.DeleteBtn.Font = $font
-    $controls.SortGroupBox.Font = $font
-    $controls.SortNameRadio.Font = $font
-    $controls.SortSizeRadio.Font = $font
-    $controls.SortCreatedRadio.Font = $font
     $controls.SelectFolder.Font = $font
     $controls.CommentsBox.Font = $font
     $controls.SaveCommentsBtn.Font = $font
@@ -1216,7 +1158,6 @@ function Get-FilesFromFolder
             $global:fileTable += $fileObj
         }
 
-        $controls.SortCreatedRadio.Checked = $true
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
         Apply-YearFilter
         Update-ListView
@@ -1225,7 +1166,6 @@ function Get-FilesFromFolder
     {
         $global:fileTable = @()
         $global:filteredTable = @()
-        $controls.SortCreatedRadio.Checked = $true
         Update-ListView
     }
 }
@@ -1250,33 +1190,6 @@ function BindHandlers
         Update-CommentsDisplay
     })
 
-    $controls.SortNameRadio.Add_CheckedChanged({
-        if ($controls.SortNameRadio.Checked)
-        {
-            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            $global:filteredTable = $global:filteredTable | Sort-Object @{ Expression = "Name"; Ascending = $true }, @{ Expression = "DisplayDate"; Ascending = $false }
-            Update-ListView
-            $form.Cursor = [System.Windows.Forms.Cursors]::Default
-        }
-    })
-    $controls.SortSizeRadio.Add_CheckedChanged({
-        if ($controls.SortSizeRadio.Checked)
-        {
-            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            $global:filteredTable = $global:filteredTable | Sort-Object Duration -Descending
-            Update-ListView
-            $form.Cursor = [System.Windows.Forms.Cursors]::Default
-        }
-    })
-    $controls.SortCreatedRadio.Add_CheckedChanged({
-        if ($controls.SortCreatedRadio.Checked)
-        {
-            $form.Cursor = [System.Windows.Forms.Cursors]::WaitCursor
-            $global:filteredTable = $global:filteredTable | Sort-Object DisplayDate -Descending
-            Update-ListView
-            $form.Cursor = [System.Windows.Forms.Cursors]::Default
-        }
-    })
     $controls.DeleteBtn.Add_Click({
         $toDeleteIndexes = @()
         foreach ($item in $controls.ListView.SelectedItems)
