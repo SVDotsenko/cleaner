@@ -187,12 +187,6 @@ function CreateControls
     $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
-    $controls.SelectFolder = New-Object Windows.Forms.Button
-    $controls.SelectFolder.Text = "Folder"
-    $form.Controls.Add($controls.SelectFolder)
-    $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
-
     $controls.CommentsBox = New-Object Windows.Forms.RichTextBox
     $controls.CommentsBox.Multiline = $true
     $controls.CommentsBox.ScrollBars = [System.Windows.Forms.RichTextBoxScrollBars]::Vertical
@@ -276,13 +270,9 @@ function CreateControls
     $controls.ListView.Columns.Add("Created", 100) | Out-Null
     $controls.ListView.Columns.Add("Comments", 500) | Out-Null
 
-    $selectFolderTooltip = @"
-Allows you to select another folder to display and work with its files.
-"@
     $deleteTooltip = @"
 Permanently deletes the selected files.
 "@
-    $toolTip.SetToolTip($controls.SelectFolder,$selectFolderTooltip.Trim())
     $toolTip.SetToolTip($controls.DeleteBtn,$deleteTooltip.Trim())
 }
 
@@ -296,9 +286,6 @@ function LayoutOnlyFonts
     $x = $gap
 
     $controls.DeleteBtn.SetBounds($x, $y, $btnW, $btnH)
-    $y += $btnH + $gap
-
-    $controls.SelectFolder.SetBounds($x, $y, $btnW, $btnH)
     $y += $btnH + $gap
 
     $controls.CommentsBox.SetBounds($x, $y, $btnW, 150)
@@ -323,7 +310,6 @@ function LayoutOnlyFonts
     $controls.ListView.Height = $form.ClientSize.Height - $controls.StatusStrip.Height
 
     $controls.DeleteBtn.Font = $font
-    $controls.SelectFolder.Font = $font
     $controls.CommentsBox.Font = $font
     $controls.SaveCommentsBtn.Font = $font
     $controls.FilterGroupBox.Font = $font
@@ -1174,15 +1160,6 @@ function Get-FilesFromFolder
 
 function BindHandlers
 {
-    $controls.SelectFolder.Add_Click({
-        $dialog = New-Object Windows.Forms.FolderBrowserDialog
-        $dialog.Description = "Select a folder"
-        if ($dialog.ShowDialog() -eq [Windows.Forms.DialogResult]::OK)
-        {
-            $global:folderPath = $dialog.SelectedPath
-            Get-FilesFromFolder
-        }
-    })
     $controls.ListView.Add_SelectedIndexChanged({
         $hasSelection = $controls.ListView.SelectedItems.Count -gt 0
         $controls.DeleteBtn.Enabled = $hasSelection
