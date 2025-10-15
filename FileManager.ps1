@@ -499,7 +499,7 @@ function Update-ListViewPreserveScroll
 }
 
 
-function Apply-YearFilter
+function Set-YearFilter
 {
     if ($controls.ThisYearRadio.Checked)
     {
@@ -581,7 +581,7 @@ function Update-ListViewTextColors
     }
 }
 
-function Load-CommentsForVisibleItems
+function Update-VisibleItemComments
 {
     if (-not $global:filteredTable)
     {
@@ -718,7 +718,6 @@ function Start-BackgroundCommentLoading
     $global:backgroundCurrentIndex = 0
 
     $statusStripTop = $form.ClientSize.Height - $controls.StatusStrip.Height
-    $statusStripLeft = 0
     $statusStripWidth = $form.ClientSize.Width
 
     $statsWidth = $controls.AboutLink.Width + 20
@@ -1145,7 +1144,7 @@ function Get-FilesFromFolder
         }
 
         $global:fileTable = $global:fileTable | Sort-Object DisplayDate -Descending
-        Apply-YearFilter
+        Set-YearFilter
         Update-ListView
     }
     else
@@ -1280,11 +1279,11 @@ function BindHandlers
         if ($controls.ThisYearRadio.Checked)
         {
             Stop-BackgroundCommentLoading
-            Apply-YearFilter
+            Set-YearFilter
             Update-ListView
             if ($controls.ListView.Items.Count -gt 0)
             {
-                Load-CommentsForVisibleItems
+                Update-VisibleItemComments
             }
         }
     })
@@ -1293,11 +1292,11 @@ function BindHandlers
         if ($controls.AllYearsRadio.Checked)
         {
             Stop-BackgroundCommentLoading
-            Apply-YearFilter
+            Set-YearFilter
             Update-ListView
             if ($controls.ListView.Items.Count -gt 0)
             {
-                Load-CommentsForVisibleItems
+                Update-VisibleItemComments
             }
         }
     })
@@ -1327,7 +1326,7 @@ $form.Add_Shown({
     BindHandlers
     $controls.AllYearsRadio.Enabled = $false
     Get-FilesFromFolder
-    Load-CommentsForVisibleItems
+    Update-VisibleItemComments
     LayoutOnlyFonts
     $form.Activate()
 })
